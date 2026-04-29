@@ -1,0 +1,303 @@
+
+// Track completion status and exit reason
+let completionStatus = {
+  finished: false,
+  exitReason: 'unknown',
+  exitTime: null,
+  totalTrialsCompleted: 0
+};
+
+// let fsListener = () => {
+//   if (!document.fullscreenElement) {
+//     // Record that they exited fullscreen early
+//     completionStatus.finished = false;
+//     completionStatus.exitReason = 'fullscreen_exit';
+//     completionStatus.exitTime = new Date().toISOString();
+    
+//     // Save the data before ending
+//     jsPsych.data.addProperties(completionStatus);
+    
+//     jsPsych.endExperiment(
+//       'You have exited fullscreen mode and your session has ended. Please contact the experimenter if this is a mistake.'
+//     );
+//   }
+// };
+// document.addEventListener("fullscreenchange", fsListener);
+
+ITI = 500;
+
+let chainLink = '';
+let maxAttentionFails = 999;
+let doAttentionCheck = true;
+
+var jsPsych = initJsPsych({
+  on_finish: function () {
+    // Always save completion data
+    jsPsych.data.addProperties(completionStatus);
+    
+    // Only redirect if they finished properly
+    if (completionStatus.finished && chainLink) {
+      window.location = chainLink;
+    }
+  }
+});
+
+let study = jsPsych.data.getURLVariable('study');
+if (study === undefined) {
+  study = 'unknown';
+}
+
+let sbjID = jsPsych.data.getURLVariable('id');
+if (sbjID === undefined) {
+  sbjID = jsPsych.randomization.randomID(10);
+}
+
+let attentionFails = Number(jsPsych.data.getURLVariable('num'));
+if (isNaN(attentionFails)) {
+  attentionFails = 0;
+}
+
+let source = jsPsych.data.getURLVariable('src');
+if (source === undefined) {
+  source = 'unknown';
+}
+
+
+
+
+
+jsPsych.data.addProperties({
+  sbjID: sbjID,
+  Source: source,
+  Study: study
+});
+
+// Timeline
+var timeline = [];
+
+// Build images to preload
+
+
+    timeline.push({
+        type: jsPsychFullscreen,
+        fullscreen_mode: true
+    })
+let images = []
+
+for (let trial of trials) {
+    for (let choice of trial.Choices) {
+        images.push(`stimuli/${choice}`)
+    }
+}
+console.log(images)
+console.log(trials[0])
+
+
+timeline.push({
+    type: jsPsychPreload,
+    message: `<b>Please Wait...Content is Loading.</b>
+    <br>This may take a few seconds.</br>`,
+    auto_preload: false,
+    images: images,
+    continue_after_error: true
+})
+
+timeline.push({
+  type: jsPsychBrowserCheck,
+  inclusion_function: (data) => {
+    return !data.mobile;
+  },
+  exclusion_message: (data) => {
+    return `
+    <p>You must use a desktop/laptop computer to participate in this
+    experiment.</p>
+    <p>Please restart the experiment on a desktop/laptop computer.</p>
+    `;
+  }
+});
+
+
+// Enter full screen
+timeline.push({
+  type: jsPsychFullscreen,
+  message: `<p>Welcome to our study!</p>
+  <p>The experiment will switch to full screen mode when you press the button below.</p>`,
+ // <p><b> Please note that the study can only be completed in fullscreen mode.<br> Exiting fullscreen mode will terminate the study early.</p><br>`,
+  fullscreen_mode: true
+})
+
+timeline.push({
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `
+  <p>Before starting the task, you will be asked to answer a few demographic questions.</p>
+  <p>Please press the spacebar.</p>
+  <p></p>
+  `,
+  choices: [' '],
+  post_trial_gap: ITI
+});
+
+timeline.push({
+  type: jsPsychSurveyHtmlForm,
+  preamble: '<p>Please provide your demographic information:</p>',
+  html: `
+    <p>Age: <input name="age" type="number" min="18" max="120" placeholder="" required></p>
+    <p>Gender: <input name="gender" type="text" 
+                      onkeypress="return !/[0-9]/.test(event.key)"
+                      placeholder="" required></p>
+    <p>Race/ethnicity: <input name="race_ethnicity" type="text" 
+                              onkeypress="return !/[0-9]/.test(event.key)"
+                              placeholder="" required></p>
+  `,
+  button_label: 'Continue',
+  
+  on_finish: function(data) {
+    const responses = data.response;
+    
+    data.age = parseInt(responses.age);
+    data.gender = responses.gender.trim();
+    data.race_ethnicity = responses.race_ethnicity.trim();
+    
+    jsPsych.data.addProperties({
+      participant_age: data.age,
+      participant_gender: data.gender,
+      participant_race_ethnicity: data.race_ethnicity
+    });
+  }
+});
+
+
+timeline.push({
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `
+  <b> Study Overview: </b>
+  <p>In this study, you will complete two short surveys and one task.</p>
+  <p>Remember that this study must be completed in fullscreen mode.</p>
+  <p>Exiting fullscreen mode during the study will terminate the study early and you will not receive credit.</p>
+  <p>Please press the spacebar to begin the first survey.</p>
+  <p></p>
+  `,
+  choices: [' '],
+  post_trial_gap: ITI
+});
+
+
+
+
+timeline.push({
+  type: jsPsychHtmlButtonResponse,
+  stimulus: `
+  <p><b>Instructions</b></p>
+  <p> Now we will begin the actual task.</p>
+  <p> You will be told whether you picked the right answer for the first 5 trials.</p>
+  <p>Please try your best to answer as accurately as possible.</p>
+  <p>When you are ready, click the 'Start' button to begin</p>
+  `,
+  choices: ['Start'],
+  post_trial_gap: ITI
+});
+
+
+for (let trial of trials) {
+const choiceHTML = trial.Choices.map(choice =>
+    // `<div style="height:325px;aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+    // <img src="stimuli/${choice}" draggable="false" ondragstart="return false;"
+    // style="max-width:100%;max-height:100%;object-fit:contain;pointer-events:none;">
+    // </div>`
+        `<div style="height:225px;aspect-ratio:3/4;display:flex;align-items:top;justify-content:center;pointer-events:none;">
+     <img src="stimuli/${choice}" draggable="false" ondragstart="return false;"
+     pointer-events:none;">
+     </div>`
+);
+
+    timeline.push({
+        type: jsPsychHtmlButtonResponse,
+        stimulus: '<p></p>',
+        choices: choiceHTML,
+        button_html: '<button class="jspsych-btn" style="padding:0;border:none;background:none;margin:0;display:inline-block">%choice%</button>',
+        response_ends_trial: true,
+        data: {
+            SbjID: sbjID,
+            TrialNum: trial.Trial,
+            CorrRes: trial.CorrRes,
+            TestTrial: true
+        },
+         on_finish: function (data) {
+                data.Correct = data.CorrRes == data.response
+                data.AttentionFails = attentionFails
+              },
+    });
+    
+    if (trial.Trial <= 5){
+      timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function () {
+          if (jsPsych.data.get().last(1).values()[0].Correct) {
+            return "<h3>Correct!</h3>"
+          } else {
+            return "<h3>Incorrect.</h3>"
+          }
+        },
+        choices: ['NO_KEYS'],
+        trial_duration: 1000
+      })
+  }
+}
+  
+  // timeline.push({
+  //   type: jsPsychHtmlButtonResponse,
+  //   stimulus: '<p></p>',
+  //   choices: trial.Choices,
+  //   button_html: buttonTemplate,
+  //   response_ends_trial: true,
+  //   data: {
+  //         SbjID: sbjID,
+  //         TrialNum: trial.Trial,
+  //         CorrRes: trial.CorrRes,
+  //         TestTrial: true
+  //       },
+  // })
+
+
+
+
+timeline.push({
+  type: jsPsychCallFunction,
+  func: () => {
+    completionStatus.finished = true;
+    completionStatus.exitReason = 'completed_normally';
+    completionStatus.exitTime = new Date().toISOString();
+    
+    document.removeEventListener("fullscreenchange", fsListener);
+    
+    jsPsych.data.addProperties(completionStatus);
+  }
+});
+
+
+timeline.push({
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `
+  <p>You have now completed the study.</p>
+  <p>Please press the spacebar to exit fullscreen mode.</p>
+  `,
+  choices: [' '],
+  post_trial_gap: ITI
+})
+
+// Exit fullscreen
+timeline.push({
+  type: jsPsychFullscreen,
+  fullscreen_mode: false
+})
+
+// End card
+timeline.push({
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `
+  <p>Thank you for your participation in this study.</p>
+  <p>Press any button to be redirected back to Prolific.</p>
+  `
+})
+
+jsPsych.run(timeline);
