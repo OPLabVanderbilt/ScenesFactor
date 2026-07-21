@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Texture Trial Builder</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         margin: 0; background: #f4f5f7; color: #222; height: 100vh; display: flex; flex-direction: column; }
+
+  /* Header */
+  header { background: #fff; border-bottom: 1px solid #ddd; padding: 8px 16px;
+           display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 15px; }
+  .seg { display: inline-flex; border: 1px solid #bbb; border-radius: 5px; overflow: hidden; }
+  .seg button { border: none; background: #eef0f2; padding: 5px 12px; font-size: 13px; cursor: pointer; }
+  .seg button.active { background: #2a7ab8; color: #fff; }
+  header .right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+  .count { font-size: 12px; color: #555; }
+  .count b { color: #222; }
+  .btn { padding: 6px 12px; font-size: 13px; border-radius: 4px; cursor: pointer; border: 1px solid #ccc; background: #fff; }
+  .btn.primary { background: #2a8; border-color: #1a7; color: #fff; font-weight: 600; }
+  .btn.primary:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.warn { color: #a00; border-color: #e0a0a0; }
+
+  /* Layout */
+  main { flex: 1; display: grid; grid-template-columns: 340px 1fr; gap: 0; overflow: hidden; }
+  .left { border-right: 1px solid #ddd; background: #fff; overflow: auto; padding: 10px; }
+  .right { overflow: auto; padding: 14px 18px; }
+
+  /* Category picker */
+  .cat-search { width: 100%; padding: 6px 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 6px; }
+  .cat-list { max-height: 190px; overflow: auto; border: 1px solid #eee; border-radius: 4px; margin-bottom: 10px; }
+  .cat-item { padding: 5px 9px; font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; }
+  .cat-item:hover { background: #eef6fd; }
+  .cat-item.active { background: #2a7ab8; color: #fff; }
+  .cat-item .frac { font-size: 11px; opacity: .7; }
+  .cat-item.done .frac { color: #1a7; font-weight: 700; }
+
+  .pool-head { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #666; margin-bottom: 6px; }
+  .pool-head label { display: flex; gap: 4px; align-items: center; cursor: pointer; }
+  .pool { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .pcell { border: 2px solid #ddd; border-radius: 4px; padding: 3px; cursor: pointer; text-align: center; background: #fafafa; position: relative; }
+  .pcell:hover { border-color: #2a7ab8; }
+  .pcell img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 2px; background: #eee; display: block; }
+  .pcell .lbl { font-size: 10px; color: #666; margin-top: 2px; }
+  .pcell.used { opacity: .55; }
+  .pcell.used::after { content: "USED"; position: absolute; top: 3px; left: 3px; background: #c44; color: #fff;
+                       font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 2px; }
+  .pcell.sess-used::after { content: "USED•"; background: #a06000; }
+  .pcell.assigned { border-color: #2a8; box-shadow: 0 0 0 2px #2a8 inset; }
+  .pcell .slotbadge { position: absolute; top: 3px; right: 3px; background: #2a8; color: #fff;
+                      font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 8px; }
+
+  /* Workspace */
+  .slots { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .slot { border: 1px solid #ccc; border-radius: 6px; background: #fff; padding: 7px 9px; font-size: 12px;
+          cursor: pointer; min-width: 130px; }
+  .slot.active { border-color: #2a7ab8; box-shadow: 0 0 0 2px #d5e8f7; }
+  .slot .st { font-weight: 700; margin-bottom: 2px; }
+  .slot .sub { color: #777; font-size: 11px; }
+  .slot .ok { color: #1a7; font-weight: 700; }
+  .slot .todo { color: #c60; }
+
+  .work { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
+  .stage { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
+  .stage h3 { margin: 0 0 8px; font-size: 14px; }
+  .canvas-wrap { position: relative; width: 100%; background: #222; border-radius: 4px; overflow: hidden; user-select: none; }
+  .canvas-wrap canvas { display: block; width: 100%; cursor: crosshair; }
+  .region-help { font-size: 12px; color: #666; margin: 8px 0 4px; }
+  .ctrl-row { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 6px 0; }
+  .ctrl-row label { width: 78px; color: #444; }
+  .ctrl-row input[type=range] { flex: 1; }
+  .ctrl-row .val { width: 42px; text-align: right; font-family: monospace; color: #333; }
+  .region-chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+  .rchip { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #eef; border: 1px solid #ccd; cursor: pointer; }
+  .rchip.active { background: #2a7ab8; color: #fff; border-color: #1f5a8a; }
+
+  .side { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
+  .side h3 { margin: 0 0 8px; font-size: 14px; }
+  .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .tile { text-align: center; }
+  .tile canvas { width: 100%; border: 1px solid #ddd; border-radius: 4px; background: #eee; }
+  .tile .role { font-size: 10px; color: #666; margin-top: 2px; }
+  .tile.answer .role { color: #1a7; font-weight: 700; }
+  .tile.selectable canvas { cursor: pointer; }
+  .tile.selected canvas { outline: 3px solid #2a7ab8; outline-offset: 1px; }
+  .tile .edited { display: inline-block; font-size: 9px; color: #a06000; font-weight: 700; margin-left: 3px; }
+  .seg.sm button { padding: 3px 9px; font-size: 12px; }
+  .adj-target { font-size: 11px; color: #555; margin: 6px 0 4px; min-height: 14px; }
+  .adj-target b { color: #2a7ab8; }
+
+  .edit-box { margin-top: 12px; border-top: 1px solid #eee; padding-top: 10px; }
+  .assemble-row { margin-top: 12px; display: flex; gap: 8px; }
+
+  .done-list { margin-top: 16px; }
+  .done-list h3 { font-size: 14px; margin: 0 0 6px; }
+  .done-item { display: flex; gap: 10px; align-items: center; font-size: 12px; padding: 5px 8px;
+               border: 1px solid #eee; border-radius: 5px; margin-bottom: 4px; background: #fff; }
+  .done-item .thumbs { display: flex; gap: 3px; }
+  .done-item .thumbs canvas { width: 34px; height: 34px; border-radius: 3px; border: 1px solid #ddd; }
+  .done-item .rm { margin-left: auto; color: #a00; cursor: pointer; border: 1px solid #e0a0a0;
+                   border-radius: 3px; padding: 2px 7px; background: #fff; font-size: 11px; }
+
+  .empty { color: #999; font-size: 13px; padding: 20px; text-align: center; }
+  .banner { background: #fff8d9; border: 1px solid #e6cf72; color: #6b5500; padding: 6px 10px;
+            font-size: 12px; border-radius: 5px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Texture Trial Builder</h1>
+  <div class="seg" id="dataset-seg">
+    <button data-ds="STUFF" class="active">STUFF</button>
+    <button data-ds="THINGS">THINGS</button>
+  </div>
+  <div class="seg" id="task-seg">
+    <button data-task="matching" class="active">Matching</button>
+    <button data-task="oddball">Oddball</button>
+  </div>
+  <div class="right">
+    <span class="count">Trials built: <b id="trial-count">0</b></span>
+    <button class="btn" id="reset-btn" title="Clear this session's built trials & used marks">Reset session</button>
+    <button class="btn primary" id="export-btn" disabled>Export ZIP</button>
+  </div>
+</header>
+
+<main>
+  <div class="left">
+    <input class="cat-search" id="cat-search" placeholder="Search categories…">
+    <div class="cat-list" id="cat-list"></div>
+    <div class="pool-head">
+      <span id="pool-title">Pool</span>
+      <label style="margin-left:auto;"><input type="checkbox" id="hide-used"> hide used</label>
+    </div>
+    <div class="pool" id="pool"></div>
+  </div>
+
+  <div class="right">
+    <div class="banner" id="banner"></div>
+    <div class="slots" id="slots"></div>
+    <div class="work">
+      <div class="stage">
+        <h3 id="stage-title">Select a source image</h3>
+        <div class="canvas-wrap" id="canvas-wrap">
+          <canvas id="crop-canvas"></canvas>
+        </div>
+        <div class="region-help" id="region-help"></div>
+        <div class="ctrl-row">
+          <label>Region size</label>
+          <input type="range" id="size-slider" min="0.12" max="1.0" step="0.01" value="0.4">
+          <span class="val" id="size-val">0.40</span>
+        </div>
+        <div class="region-chips" id="region-chips"></div>
+      </div>
+
+      <div class="side">
+        <h3>Tile preview</h3>
+        <div class="tiles" id="tiles"></div>
+        <div class="edit-box">
+          <h3 style="font-size:13px;">Adjustments</h3>
+          <div class="seg sm adj-mode" id="adj-mode-seg">
+            <button data-mode="all" class="active">All tiles</button>
+            <button data-mode="individual">Per tile</button>
+          </div>
+          <div class="adj-target" id="adj-target"></div>
+          <div class="ctrl-row"><label>Lightness</label><input type="range" id="adj-bri" min="0.3" max="1.7" step="0.01" value="1"><span class="val" id="bri-val">1.00</span></div>
+          <div class="ctrl-row"><label>Saturation</label><input type="range" id="adj-sat" min="0" max="2" step="0.01" value="1"><span class="val" id="sat-val">1.00</span></div>
+          <div class="ctrl-row"><label>Contrast</label><input type="range" id="adj-con" min="0.3" max="1.7" step="0.01" value="1"><span class="val" id="con-val">1.00</span></div>
+          <div style="display:flex;gap:6px;margin-top:4px;">
+            <button class="btn" id="grayscale-btn" style="font-size:11px;padding:4px 8px;">Grayscale</button>
+            <button class="btn" id="reset-adj-btn" style="font-size:11px;padding:4px 8px;">Reset adj.</button>
+          </div>
+        </div>
+        <div class="assemble-row">
+          <button class="btn primary" id="add-trial-btn" disabled style="flex:1;">Add trial ➜</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="done-list" id="done-list"></div>
+  </div>
+</main>
+
+<script>
+"use strict";
+// ------------------------------------------------------------------ config
+const TILE_PX = 250;
+const TASK_CFG = {
+  matching: {
+    label: "Matching",
+    slots: [
+      { key: "sm", label: "Study + Match", sub: "same image, 2 crops", regions: 2, roles: ["study", "match"] },
+      { key: "d1", label: "Distractor 1",  sub: "different image",     regions: 1, roles: ["distractor"] },
+      { key: "d2", label: "Distractor 2",  sub: "different image",     regions: 1, roles: ["distractor"] },
+    ],
+    // options presented to participant (study is the reference, shown separately)
+    optionRoles: ["match", "distractor", "distractor"],
+    answerRole: "match",
+  },
+  oddball: {
+    label: "Oddball",
+    slots: [
+      { key: "same", label: "Same (×3)", sub: "same image, 3 crops", regions: 3, roles: ["same", "same", "same"] },
+      { key: "odd",  label: "Oddball",   sub: "different image",     regions: 1, roles: ["oddball"] },
+    ],
+    optionRoles: ["same", "same", "same", "oddball"],
+    answerRole: "oddball",
+  },
+};
+
+// ------------------------------------------------------------------ state
+let MANIFEST = null, USED = null;
+const S = {
+  dataset: "STUFF",
+  task: "matching",
+  category: null,
+  hideUsed: false,
+  sessionUsed: {},      // dataset -> {cat -> {num: true}}
+  trials: [],           // completed trial objects
+  // current trial being built:
+  slots: {},            // slotKey -> { img: {cat,file,num}, el, regions: [{cx,cy,size}], loaded:<Image> }
+  activeSlot: null,
+  activeRegion: 0,
+  adj: { bri: 1, sat: 1, con: 1 },   // "all tiles" adjustment
+  adjMode: "all",                    // "all" | "individual"
+  tileAdj: {},                       // "slot#ri" -> {bri,sat,con}  (per-tile mode)
+  selectedTile: null,                // {slot, ri} being edited in per-tile mode
+};
+const LS_KEY = "texbuilder_session_v1";
+
+// ------------------------------------------------------------------ util
+const $ = id => document.getElementById(id);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+const stem = f => f.replace(/\.[^.]+$/, "");
+function imgPath(dataset, cat, file) { return `web_images/${dataset}/${cat}/${file}`; }
+function idToken(dataset, file) {
+  // STUFF: "0012" ; THINGS: strip repeated category, keep the distinctive id
+  const s = stem(file);
+  if (dataset === "STUFF") return s;
+  const parts = s.split("_");                 // artichoke_03n -> artichoke,03n
+  return parts.length > 1 ? parts.slice(1).join("") : s;
+}
+function isUsed(dataset, cat, file) {
+  const num = stem(file);
+  const baked = USED[dataset] && USED[dataset][cat] && USED[dataset][cat][num];
+  const sess = S.sessionUsed[dataset] && S.sessionUsed[dataset][cat] && S.sessionUsed[dataset][cat][num];
+  return baked ? "baked" : (sess ? "session" : null);
+}
+function markSessionUsed(dataset, cat, file) {
+  const num = stem(file);
+  (S.sessionUsed[dataset] = S.sessionUsed[dataset] || {});
+  (S.sessionUsed[dataset][cat] = S.sessionUsed[dataset][cat] || {});
+  S.sessionUsed[dataset][cat][num] = true;
+}
+function saveSession() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ sessionUsed: S.sessionUsed, trialMeta: S.trials.map(stripBlobs) })); } catch (e) {}
+}
+function stripBlobs(t) { return { task: t.task, dataset: t.dataset, category: t.category, adj: t.adj,
+  tiles: t.tiles.map(x => ({ role: x.role, part: x.part, source: x.source, region: x.region })), answer_part: t.answer_part, id: t.id }; }
+function loadSession() {
+  try {
+    const raw = localStorage.getItem(LS_KEY); if (!raw) return;
+    const d = JSON.parse(raw);
+    if (d.sessionUsed) S.sessionUsed = d.sessionUsed;
+    // trialMeta is informational on reload (rendered tiles are not persisted); keep count context only
+  } catch (e) {}
+}
+
+// ------------------------------------------------------------------ init
+async function init() {
+  loadSession();
+  [MANIFEST, USED] = await Promise.all([
+    fetch("manifest.json").then(r => r.json()),
+    fetch("used.json").then(r => r.json()),
+  ]);
+  wireHeader();
+  wireWorkspace();
+  renderCategories();
+  resetCurrentTrial();
+  updateBanner();
+}
+function updateBanner() {
+  const cats = MANIFEST[S.dataset];
+  const n = Object.keys(cats).length;
+  const imgs = Object.values(cats).reduce((a, b) => a + b.length, 0);
+  const kind = S.dataset === "STUFF" ? "material" : "object";
+  $("banner").textContent = `${S.dataset}: ${n} ${kind} categories, ${imgs} images. `
+    + `Task: ${TASK_CFG[S.task].label}. Pick a category, assign source images to the slots, place crop regions, adjust, then Add trial.`;
+}
+
+// ------------------------------------------------------------------ header
+function wireHeader() {
+  $("dataset-seg").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    S.dataset = b.dataset.ds; S.category = null;
+    [...$("dataset-seg").children].forEach(x => x.classList.toggle("active", x === b));
+    renderCategories(); renderPool(); resetCurrentTrial(); updateBanner();
+  });
+  $("task-seg").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    S.task = b.dataset.task;
+    [...$("task-seg").children].forEach(x => x.classList.toggle("active", x === b));
+    resetCurrentTrial(); updateBanner();
+  });
+  $("cat-search").addEventListener("input", renderCategories);
+  $("hide-used").addEventListener("change", e => { S.hideUsed = e.target.checked; renderPool(); });
+  $("reset-btn").addEventListener("click", () => {
+    if (!confirm("Clear this session's built trials and 'used' marks? (Baked-in used marks from the spreadsheet stay.)")) return;
+    S.trials = []; S.sessionUsed = {}; saveSession();
+    renderCategories(); renderPool(); resetCurrentTrial(); renderDoneList(); refreshExport();
+  });
+  $("export-btn").addEventListener("click", exportZip);
+}
+
+// ------------------------------------------------------------------ categories + pool
+function catUsedFraction(cat) {
+  const files = MANIFEST[S.dataset][cat];
+  let used = 0;
+  for (const f of files) if (isUsed(S.dataset, cat, f)) used++;
+  return [used, files.length];
+}
+function renderCategories() {
+  const q = $("cat-search").value.trim().toLowerCase();
+  const list = $("cat-list"); list.innerHTML = "";
+  const cats = Object.keys(MANIFEST[S.dataset]).sort();
+  for (const cat of cats) {
+    if (q && !cat.includes(q)) continue;
+    const [u, n] = catUsedFraction(cat);
+    const item = el("div", "cat-item" + (cat === S.category ? " active" : "") + (u >= n ? " done" : ""));
+    item.innerHTML = `<span>${cat.replace(/_/g, " ")}</span><span class="frac">${u}/${n}</span>`;
+    item.addEventListener("click", () => { S.category = cat; renderCategories(); renderPool(); });
+    list.appendChild(item);
+  }
+}
+function renderPool() {
+  const pool = $("pool"); pool.innerHTML = "";
+  $("pool-title").textContent = S.category ? `Pool — ${S.category.replace(/_/g, " ")}` : "Pool";
+  if (!S.category) { pool.appendChild(el("div", "empty", "Pick a category")); return; }
+  const files = MANIFEST[S.dataset][S.category];
+  for (const f of files) {
+    const u = isUsed(S.dataset, S.category, f);
+    if (S.hideUsed && u) continue;
+    const cell = el("div", "pcell" + (u === "baked" ? " used" : u === "session" ? " used sess-used" : ""));
+    // is this file assigned to a slot in the current trial?
+    const slotKey = assignedSlotOf(f);
+    if (slotKey) { cell.classList.add("assigned"); cell.appendChild(el("span", "slotbadge", slotKey)); }
+    const im = el("img"); im.loading = "lazy"; im.src = imgPath(S.dataset, S.category, f);
+    cell.appendChild(im);
+    cell.appendChild(el("div", "lbl", idToken(S.dataset, f)));
+    cell.addEventListener("click", () => assignToActiveSlot(f));
+    pool.appendChild(cell);
+  }
+  if (!pool.children.length) pool.appendChild(el("div", "empty", "No images (all used?)"));
+}
+function assignedSlotOf(file) {
+  for (const k in S.slots) if (S.slots[k].img && S.slots[k].img.file === file) return k;
+  return null;
+}
+
+// ------------------------------------------------------------------ workspace / slots
+function resetCurrentTrial() {
+  S.slots = {}; S.activeSlot = TASK_CFG[S.task].slots[0].key; S.activeRegion = 0;
+  S.adj = { bri: 1, sat: 1, con: 1 };
+  S.tileAdj = {}; S.selectedTile = null;
+  [...$("adj-mode-seg").children].forEach(x => x.classList.toggle("active", x.dataset.mode === S.adjMode));
+  renderSlots(); drawStage(); renderTiles(); renderPool(); refreshAddBtn(); syncSliders();
+}
+function renderSlots() {
+  const wrap = $("slots"); wrap.innerHTML = "";
+  for (const cfg of TASK_CFG[S.task].slots) {
+    const st = S.slots[cfg.key];
+    const hasImg = st && st.img;
+    const placed = st ? st.regions.filter(Boolean).length : 0;
+    const done = hasImg && placed >= cfg.regions;
+    const d = el("div", "slot" + (S.activeSlot === cfg.key ? " active" : ""));
+    d.innerHTML = `<div class="st">${cfg.label}</div>`
+      + `<div class="sub">${cfg.sub}</div>`
+      + `<div class="${done ? "ok" : "todo"}">${hasImg ? st.img.cat + " " + idToken(S.dataset, st.img.file) : "no image"} · ${placed}/${cfg.regions} crops</div>`;
+    d.addEventListener("click", () => { S.activeSlot = cfg.key; S.activeRegion = firstUnplaced(cfg.key); renderSlots(); drawStage(); });
+    wrap.appendChild(d);
+  }
+}
+function slotCfg(key) { return TASK_CFG[S.task].slots.find(s => s.key === key); }
+function firstUnplaced(key) {
+  const st = S.slots[key]; const cfg = slotCfg(key);
+  if (!st) return 0;
+  for (let i = 0; i < cfg.regions; i++) if (!st.regions[i]) return i;
+  return 0;
+}
+function assignToActiveSlot(file) {
+  const key = S.activeSlot; const cfg = slotCfg(key);
+  // prevent reusing the same image in two slots of one trial
+  const other = assignedSlotOf(file);
+  if (other && other !== key) { alert(`That image is already assigned to slot "${other}".`); return; }
+  const img = { cat: S.category, file, num: stem(file), dataset: S.dataset };
+  const loaded = new Image();
+  loaded.onload = () => { drawStage(); };
+  loaded.src = imgPath(S.dataset, S.category, file);
+  // default: place all regions centered, spread a little
+  const regions = [];
+  for (let i = 0; i < cfg.regions; i++) {
+    const off = (i - (cfg.regions - 1) / 2) * 0.18;
+    regions.push(null); // start unplaced; user clicks to place. But seed region 0 centered for convenience:
+  }
+  regions[0] = { cx: 0.5, cy: 0.5, size: 0.4 };
+  S.slots[key] = { img, loaded, regions };
+  S.activeRegion = 0;
+  if (S.adjMode === "individual") { initTileAdj(); syncSliders(); }
+  renderSlots(); renderPool(); drawStage(); renderTiles(); refreshAddBtn();
+}
+
+// ------------------------------------------------------------------ crop stage
+const canvas = $("crop-canvas"), ctx = canvas.getContext("2d");
+let dragging = false;
+function curSlot() { return S.slots[S.activeSlot]; }
+function drawStage() {
+  const st = curSlot();
+  const cfg = slotCfg(S.activeSlot);
+  $("stage-title").textContent = st && st.img
+    ? `${S.activeSlot}: ${st.img.cat} ${idToken(S.dataset, st.img.file)} — click to place crop ${S.activeRegion + 1}/${cfg.regions}`
+    : `Assign an image to slot "${S.activeSlot}" (click a pool image)`;
+  renderRegionChips();
+  const wrap = $("canvas-wrap");
+  if (!st || !st.img || !st.loaded || !st.loaded.complete || !st.loaded.naturalWidth) {
+    canvas.width = wrap.clientWidth || 500; canvas.height = 300;
+    ctx.fillStyle = "#222"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#888"; ctx.font = "13px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("no image", canvas.width / 2, canvas.height / 2);
+    $("region-help").textContent = "";
+    return;
+  }
+  const iw = st.loaded.naturalWidth, ih = st.loaded.naturalHeight;
+  const cw = wrap.clientWidth || 500;
+  const scale = cw / iw;
+  canvas.width = cw; canvas.height = Math.round(ih * scale);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.filter = filterStrFor(S.activeSlot, S.activeRegion);
+  ctx.drawImage(st.loaded, 0, 0, canvas.width, canvas.height);
+  ctx.filter = "none";
+  // draw all regions
+  const minEdge = Math.min(iw, ih);
+  st.regions.forEach((r, i) => {
+    if (!r) return;
+    const sizePx = r.size * minEdge, half = sizePx / 2;
+    const x = (r.cx * iw - half) * scale, y = (r.cy * ih - half) * scale, w = sizePx * scale;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = i === S.activeRegion ? "#ffcc00" : "#2ad";
+    ctx.strokeRect(x, y, w, w);
+    ctx.fillStyle = i === S.activeRegion ? "#ffcc00" : "#2ad";
+    ctx.fillRect(x, y - 16, 22, 16);
+    ctx.fillStyle = "#000"; ctx.font = "bold 11px sans-serif"; ctx.textAlign = "left";
+    ctx.fillText(cfg.roles[i][0].toUpperCase() + (i + 1), x + 3, y - 4);
+  });
+  $("region-help").textContent = `Source ${iw}×${ih}px. Click to move the active crop; use the slider to resize. Crops may overlap.`;
+  // sync size slider to active region
+  const ar = st.regions[S.activeRegion];
+  if (ar) { $("size-slider").value = ar.size; $("size-val").textContent = ar.size.toFixed(2); }
+}
+function renderRegionChips() {
+  const box = $("region-chips"); box.innerHTML = "";
+  const cfg = slotCfg(S.activeSlot); const st = curSlot();
+  for (let i = 0; i < cfg.regions; i++) {
+    const placed = st && st.regions[i];
+    const c = el("div", "rchip" + (i === S.activeRegion ? " active" : ""),
+      `${cfg.roles[i]} ${i + 1}${placed ? "" : " (empty)"}`);
+    c.addEventListener("click", () => { S.activeRegion = i; drawStage(); });
+    box.appendChild(c);
+  }
+}
+function canvasToNorm(ev) {
+  const st = curSlot(); if (!st) return null;
+  const rect = canvas.getBoundingClientRect();
+  const px = (ev.clientX - rect.left) / rect.width;   // 0..1 of displayed width == image width
+  const py = (ev.clientY - rect.top) / rect.height;
+  return { cx: Math.min(1, Math.max(0, px)), cy: Math.min(1, Math.max(0, py)) };
+}
+function placeActive(ev) {
+  const st = curSlot(); if (!st || !st.img) return;
+  const p = canvasToNorm(ev); if (!p) return;
+  const cur = st.regions[S.activeRegion] || { size: parseFloat($("size-slider").value) };
+  st.regions[S.activeRegion] = { cx: p.cx, cy: p.cy, size: cur.size };
+  drawStage(); renderSlots(); renderTiles(); refreshAddBtn();
+}
+canvas.addEventListener("mousedown", e => { dragging = true; placeActive(e); });
+canvas.addEventListener("mousemove", e => { if (dragging) placeActive(e); });
+window.addEventListener("mouseup", () => { dragging = false; });
+$("size-slider").addEventListener("input", e => {
+  const v = parseFloat(e.target.value); $("size-val").textContent = v.toFixed(2);
+  const st = curSlot(); if (st && st.regions[S.activeRegion]) { st.regions[S.activeRegion].size = v; drawStage(); renderTiles(); }
+});
+window.addEventListener("resize", () => drawStage());
+
+// ------------------------------------------------------------------ adjustments
+function adjToFilter(a) { return `brightness(${a.bri}) saturate(${a.sat}) contrast(${a.con})`; }
+const tkey = (slot, ri) => slot + "#" + ri;
+function isDefaultAdj(a) { return a.bri === 1 && a.sat === 1 && a.con === 1; }
+// list of tile identities in the in-progress trial (study + options)
+function currentTileList() {
+  const list = [];
+  if (S.task === "matching" && S.slots.sm) list.push({ slot: "sm", ri: 0, role: "study" });
+  for (const o of currentOptionTiles()) list.push({ slot: o.slot, ri: o.ri, role: o.role });
+  return list;
+}
+// effective adjustment used when RENDERING a given tile
+function adjFor(slot, ri) {
+  if (S.adjMode === "all") return S.adj;
+  return S.tileAdj[tkey(slot, ri)] || S.adj;   // untouched tiles fall back to the global baseline
+}
+function filterStrFor(slot, ri) { return adjToFilter(adjFor(slot, ri)); }
+// give every current tile its own entry (snapshot of the global baseline)
+function initTileAdj() {
+  for (const t of currentTileList()) {
+    const k = tkey(t.slot, t.ri);
+    if (!S.tileAdj[k]) S.tileAdj[k] = { ...S.adj };
+  }
+}
+// which adjustment object the SLIDERS currently edit
+function currentAdjTarget() {
+  if (S.adjMode === "all") return S.adj;
+  if (!S.selectedTile) S.selectedTile = { slot: S.activeSlot, ri: S.activeRegion };
+  const k = tkey(S.selectedTile.slot, S.selectedTile.ri);
+  if (!S.tileAdj[k]) S.tileAdj[k] = { ...S.adj };
+  return S.tileAdj[k];
+}
+function targetRole() {
+  if (S.adjMode === "all" || !S.selectedTile) return null;
+  const t = currentTileList().find(x => x.slot === S.selectedTile.slot && x.ri === S.selectedTile.ri);
+  return t ? t.role : null;
+}
+function syncSliders() {
+  const a = currentAdjTarget();
+  ["bri", "sat", "con"].forEach(k => { $("adj-" + k).value = a[k]; $(k + "-val").textContent = a[k].toFixed(2); });
+  const tgt = $("adj-target");
+  if (S.adjMode === "all") tgt.innerHTML = "Editing <b>all tiles</b> together.";
+  else tgt.innerHTML = S.selectedTile
+    ? `Editing tile: <b>${targetRole() || "?"}</b> (click a preview tile to switch)`
+    : "Click a preview tile to edit it.";
+}
+["bri", "sat", "con"].forEach(k => {
+  $("adj-" + k).addEventListener("input", e => {
+    const a = currentAdjTarget(); a[k] = parseFloat(e.target.value); $(k + "-val").textContent = a[k].toFixed(2);
+    drawStage(); renderTiles();
+  });
+});
+$("grayscale-btn").addEventListener("click", () => { currentAdjTarget().sat = 0; syncSliders(); drawStage(); renderTiles(); });
+$("reset-adj-btn").addEventListener("click", () => {
+  const a = currentAdjTarget(); a.bri = 1; a.sat = 1; a.con = 1; syncSliders(); drawStage(); renderTiles();
+});
+$("adj-mode-seg").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  S.adjMode = b.dataset.mode;
+  [...$("adj-mode-seg").children].forEach(x => x.classList.toggle("active", x === b));
+  if (S.adjMode === "individual") { initTileAdj(); if (!S.selectedTile) S.selectedTile = { slot: S.activeSlot, ri: S.activeRegion }; }
+  syncSliders(); renderTiles();
+});
+function wireWorkspace() { $("add-trial-btn").addEventListener("click", addTrial); }
+
+// ------------------------------------------------------------------ tile rendering
+function renderTileTo(cv, slot, region, slotKey, ri) {
+  cv.width = TILE_PX; cv.height = TILE_PX;
+  const c = cv.getContext("2d");
+  c.fillStyle = "#eee"; c.fillRect(0, 0, TILE_PX, TILE_PX);
+  if (!slot || !slot.loaded || !slot.loaded.complete || !slot.loaded.naturalWidth || !region) return;
+  const iw = slot.loaded.naturalWidth, ih = slot.loaded.naturalHeight, minEdge = Math.min(iw, ih);
+  const sizePx = region.size * minEdge, half = sizePx / 2;
+  let sx = region.cx * iw - half, sy = region.cy * ih - half;
+  sx = Math.max(0, Math.min(iw - sizePx, sx)); sy = Math.max(0, Math.min(ih - sizePx, sy));
+  c.filter = filterStrFor(slotKey, ri);
+  c.drawImage(slot.loaded, sx, sy, sizePx, sizePx, 0, 0, TILE_PX, TILE_PX);
+  c.filter = "none";
+}
+// build the list of option tiles {role, slotKey, regionIndex} for current trial
+function currentOptionTiles() {
+  const out = [];
+  if (S.task === "matching") {
+    const sm = S.slots.sm;
+    if (sm) { out.push({ role: "match", slot: "sm", ri: 1 }); }
+    if (S.slots.d1) out.push({ role: "distractor", slot: "d1", ri: 0 });
+    if (S.slots.d2) out.push({ role: "distractor", slot: "d2", ri: 0 });
+  } else {
+    if (S.slots.same) { out.push({ role: "same", slot: "same", ri: 0 }); out.push({ role: "same", slot: "same", ri: 1 }); out.push({ role: "same", slot: "same", ri: 2 }); }
+    if (S.slots.odd) out.push({ role: "oddball", slot: "odd", ri: 0 });
+  }
+  return out;
+}
+function tileEl(labelHtml, slotKey, ri, extraClass) {
+  const st = S.slots[slotKey]; const region = st && st.regions[ri];
+  const per = S.adjMode === "individual";
+  const selected = per && S.selectedTile && S.selectedTile.slot === slotKey && S.selectedTile.ri === ri;
+  const t = el("div", "tile" + (extraClass || "") + (per ? " selectable" : "") + (selected ? " selected" : ""));
+  const cv = el("canvas"); renderTileTo(cv, st, region, slotKey, ri);
+  t.appendChild(cv);
+  const edited = per && !isDefaultAdj(adjFor(slotKey, ri));
+  t.appendChild(el("div", "role", labelHtml + (edited ? '<span class="edited">adj</span>' : "")));
+  if (per) t.addEventListener("click", () => {
+    S.selectedTile = { slot: slotKey, ri };
+    // follow selection with the crop stage so the big preview matches
+    S.activeSlot = slotKey; S.activeRegion = ri;
+    renderSlots(); drawStage(); syncSliders(); renderTiles();
+  });
+  return t;
+}
+function renderTiles() {
+  const box = $("tiles"); box.innerHTML = "";
+  if (S.task === "matching") box.appendChild(tileEl("STUDY (ref)", "sm", 0, ""));
+  for (const opt of currentOptionTiles()) {
+    const isAns = opt.role === TASK_CFG[S.task].answerRole;
+    box.appendChild(tileEl(opt.role, opt.slot, opt.ri, isAns ? " answer" : ""));
+  }
+}
+
+// ------------------------------------------------------------------ trial completeness + add
+function trialComplete() {
+  for (const cfg of TASK_CFG[S.task].slots) {
+    const st = S.slots[cfg.key];
+    if (!st || !st.img || !st.loaded || !st.loaded.complete) return false;
+    for (let i = 0; i < cfg.regions; i++) if (!st.regions[i]) return false;
+  }
+  return true;
+}
+function refreshAddBtn() { $("add-trial-btn").disabled = !trialComplete(); }
+function refreshExport() { $("export-btn").disabled = S.trials.length === 0; $("trial-count").textContent = S.trials.length; }
+
+function addTrial() {
+  if (!trialComplete()) return;
+  const cfg = TASK_CFG[S.task];
+  const trialNum = S.trials.length + 1;
+  const cat = S.category;
+  // gather option tiles, shuffle
+  let options = currentOptionTiles().map(o => {
+    const st = S.slots[o.slot];
+    return { role: o.role, slot: o.slot, ri: o.ri, source: { cat: st.img.cat, file: st.img.file, num: st.img.num },
+             region: st.regions[o.ri] };
+  });
+  shuffle(options);
+  const tiles = [];
+  // study tile (matching only) = part0
+  if (S.task === "matching") {
+    const sm = S.slots.sm;
+    tiles.push({ role: "study", part: 0, slot: "sm", ri: 0,
+      source: { cat: sm.img.cat, file: sm.img.file, num: sm.img.num }, region: sm.regions[0] });
+  }
+  let answerPart = null;
+  options.forEach((o, idx) => {
+    const part = idx + 1;
+    if (o.role === cfg.answerRole) answerPart = part;
+    tiles.push({ role: o.role, part, slot: o.slot, ri: o.ri, source: o.source, region: o.region });
+  });
+  // render each tile to an offscreen canvas -> keep for export
+  const rendered = tiles.map(t => {
+    const cv = document.createElement("canvas");
+    renderTileTo(cv, S.slots[t.slot], t.region, t.slot, t.ri);
+    return { ...t, canvas: cv, adj: { ...adjFor(t.slot, t.ri) }, filename: tileFilename(trialNum, cat, t) };
+  });
+  const trial = {
+    id: trialNum, task: S.task, dataset: S.dataset, category: cat,
+    adjMode: S.adjMode, adj: { ...S.adj }, answer_part: answerPart, tiles: rendered,
+  };
+  S.trials.push(trial);
+  // mark all involved source images as used (this session)
+  for (const cfg2 of TASK_CFG[S.task].slots) {
+    const st = S.slots[cfg2.key]; markSessionUsed(S.dataset, st.img.cat, st.img.file);
+  }
+  saveSession();
+  resetCurrentTrial(); renderCategories(); renderDoneList(); refreshExport();
+}
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } }
+function tileFilename(trialNum, cat, t) {
+  const tt = String(trialNum).padStart(2, "0");
+  const idtok = idToken(S.dataset, t.source.file);
+  const partLabel = t.role === "study" ? "study" : "part" + t.part;
+  return `t${tt}_${cat}${idtok}_${partLabel}.png`;
+}
+
+function renderDoneList() {
+  const box = $("done-list"); box.innerHTML = "";
+  if (!S.trials.length) return;
+  box.appendChild(el("h3", null, `Built trials (${S.trials.length})`));
+  S.trials.forEach((tr, idx) => {
+    const item = el("div", "done-item");
+    item.appendChild(el("span", null, `<b>#${tr.id}</b> ${tr.task} · ${tr.category} · ans part ${tr.answer_part}`));
+    const thumbs = el("div", "thumbs");
+    tr.tiles.forEach(t => { const cv = el("canvas"); cv.width = cv.height = 40;
+      cv.getContext("2d").drawImage(t.canvas, 0, 0, 40, 40); thumbs.appendChild(cv); });
+    item.appendChild(thumbs);
+    const rm = el("button", "rm", "remove");
+    rm.addEventListener("click", () => { S.trials.splice(idx, 1); renumber(); saveSession(); renderDoneList(); refreshExport(); renderCategories(); renderPool(); });
+    item.appendChild(rm);
+    box.appendChild(item);
+  });
+}
+function renumber() { S.trials.forEach((tr, i) => { tr.id = i + 1;
+  tr.tiles.forEach(t => t.filename = tileFilename(tr.id, tr.category, t)); }); }
+
+// ------------------------------------------------------------------ export (dependency-free ZIP, store method)
+async function exportZip() {
+  if (!S.trials.length) return;
+  const files = [];
+  // manifest of decisions
+  const manifest = { generated: new Date().toISOString(), tile_px: TILE_PX,
+    trials: S.trials.map(tr => ({ id: tr.id, task: tr.task, dataset: tr.dataset, category: tr.category,
+      adjustment_mode: tr.adjMode, adjustments_all: tr.adj, answer_part: tr.answer_part,
+      tiles: tr.tiles.map(t => ({ file: t.filename, role: t.role, part: t.part,
+        source_image: `${t.source.cat}/${t.source.file}`,
+        adjustments: t.adj,
+        region: { cx: +t.region.cx.toFixed(4), cy: +t.region.cy.toFixed(4), size: +t.region.size.toFixed(4) } })) })) };
+  // used_update for merge-back
+  const usedUpdate = S.sessionUsed;
+  files.push({ name: "manifest.json", data: strBytes(JSON.stringify(manifest, null, 2)) });
+  files.push({ name: "used_update.json", data: strBytes(JSON.stringify(usedUpdate, null, 2)) });
+  // render each tile PNG
+  for (const tr of S.trials) {
+    for (const t of tr.tiles) {
+      const blob = await new Promise(res => t.canvas.toBlob(res, "image/png"));
+      const buf = new Uint8Array(await blob.arrayBuffer());
+      files.push({ name: `stimuli/${t.filename}`, data: buf });
+    }
+  }
+  const zip = buildZip(files);
+  const url = URL.createObjectURL(new Blob([zip], { type: "application/zip" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = `texture_trials_${S.trials.length}_${Date.now()}.zip`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+function strBytes(s) { return new TextEncoder().encode(s); }
+// minimal ZIP writer (store, no compression) --------------------------------
+const CRC_TABLE = (() => { const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; }
+  return t; })();
+function crc32(buf) { let c = 0xFFFFFFFF; for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function buildZip(files) {
+  const enc = new TextEncoder(); const chunks = []; const central = []; let offset = 0;
+  const u16 = n => [n & 0xFF, (n >>> 8) & 0xFF];
+  const u32 = n => [n & 0xFF, (n >>> 8) & 0xFF, (n >>> 16) & 0xFF, (n >>> 24) & 0xFF];
+  for (const f of files) {
+    const nameBytes = enc.encode(f.name); const data = f.data; const crc = crc32(data);
+    const local = [].concat(u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0),
+      u32(crc), u32(data.length), u32(data.length), u16(nameBytes.length), u16(0));
+    chunks.push(new Uint8Array(local)); chunks.push(nameBytes); chunks.push(data);
+    const cen = [].concat(u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0),
+      u32(crc), u32(data.length), u32(data.length), u16(nameBytes.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset));
+    central.push(new Uint8Array(cen)); central.push(nameBytes);
+    offset += local.length + nameBytes.length + data.length;
+  }
+  let cenSize = 0; central.forEach(c => cenSize += c.length);
+  const cenStart = offset;
+  const end = [].concat(u32(0x06054b50), u16(0), u16(0), u16(files.length), u16(files.length), u32(cenSize), u32(cenStart), u16(0));
+  const all = [...chunks, ...central, new Uint8Array(end)];
+  let total = 0; all.forEach(c => total += c.length);
+  const out = new Uint8Array(total); let p = 0; for (const c of all) { out.set(c, p); p += c.length; }
+  return out;
+}
+
+// ------------------------------------------------------------------ go
+init().catch(e => { $("banner").textContent = "Failed to load data: " + e.message
+  + " — make sure you're serving this folder over http (not file://)."; console.error(e); });
+</script>
+</body>
+</html>

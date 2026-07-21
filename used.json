@@ -1,0 +1,289 @@
+{
+"STUFF": {
+"beewax": {
+"0215": [
+"A:match:trial 3"
+],
+"0205": [
+"A:distractor:trial 3"
+],
+"0213": [
+"A:distractor:trial 3"
+]
+},
+"algae": {
+"0012": [
+"A:match:2"
+],
+"0010": [
+"A:distractor:2",
+"note:completed"
+],
+"0011": [
+"A:distractor:2"
+],
+"0015": [
+"note:completed"
+]
+},
+"brownstone": {
+"0329": [
+"A:match:3",
+"B:match:1"
+],
+"0325": [
+"A:distractor:3",
+"B:distractor:1"
+],
+"0327": [
+"A:distractor:3",
+"B:distractor:1"
+]
+},
+"cashmere": {
+"0433": [
+"A:match:trial 7",
+"B:match:2"
+],
+"0444": [
+"A:distractor:trial 7",
+"B:distractor:2"
+],
+"0446": [
+"A:distractor:trial 7",
+"B:distractor:2"
+]
+},
+"cement": {
+"0471": [
+"A:match:trial 8",
+"B:match:3"
+],
+"0482": [
+"A:distractor:trial 8",
+"B:distractor:3"
+],
+"0485": [
+"A:distractor:trial 8",
+"B:distractor:3"
+]
+},
+"chalkstone": {
+"0526": [
+"A:match:6",
+"B:match:4"
+],
+"0528": [
+"A:distractor:6",
+"B:distractor:4"
+],
+"0534": [
+"A:distractor:6",
+"B:distractor:4"
+]
+},
+"cheesecloth": {
+"0561": [
+"A:match:trial 10",
+"B:match:5"
+],
+"0557": [
+"A:distractor:trial 10",
+"B:distractor:5"
+],
+"0571": [
+"A:distractor:trial 10",
+"B:distractor:5"
+]
+},
+"clay": {
+"0631": [
+"A:match:trial 12",
+"B:match:?"
+],
+"0640": [
+"A:distractor:trial 12",
+"B:distractor:?"
+],
+"0636": [
+"A:distractor:trial 12",
+"B:distractor:?"
+]
+},
+"copper": {
+"0710": [
+"A:match:9",
+"B:match:?"
+],
+"0712": [
+"A:distractor:9",
+"B:distractor:?"
+],
+"0720": [
+"A:distractor:9",
+"B:distractor:?"
+]
+},
+"coral": {
+"0736": [
+"A:match:10",
+"B:match:?"
+],
+"0749": [
+"A:distractor:10",
+"B:distractor:?"
+],
+"0735": [
+"A:distractor:10",
+"B:distractor:?"
+]
+},
+"cord": {
+"0761": [
+"A:match:11",
+"B:match:?"
+],
+"0758": [
+"A:distractor:11",
+"B:distractor:?"
+],
+"0773": [
+"A:distractor:11",
+"B:distractor:?"
+]
+},
+"cotton_cloth": {
+"0812": [
+"A:match:12",
+"B:match:?"
+],
+"0811": [
+"A:distractor:12",
+"B:distractor:?"
+],
+"0799": [
+"A:distractor:12",
+"B:distractor:?"
+]
+},
+"feather": {
+"0983": [
+"A:match:trial 17",
+"B:match:?"
+],
+"0977": [
+"A:distractor:trial 17",
+"B:distractor:?"
+],
+"0982": [
+"A:distractor:trial 17",
+"B:distractor:?"
+]
+},
+"flint": {
+"1078": [
+"A:match:14",
+"B:match:?"
+],
+"1079": [
+"A:distractor:14",
+"B:distractor:?"
+],
+"1093": [
+"A:distractor:14",
+"B:distractor:?"
+]
+},
+"diamond": {
+"0869": [
+"A:match:trial 20",
+"B:match:?"
+],
+"0871": [
+"A:distractor:trial 20",
+"B:distractor:?"
+],
+"0877": [
+"A:distractor:trial 20",
+"B:distractor:?"
+]
+},
+"zinc": {
+"3498": [
+"A:oddball:?",
+"B:oddball:1"
+],
+"3497": [
+"A:match:?",
+"B:distractor:1"
+]
+},
+"water": {
+"3405": [
+"A:oddball:?",
+"B:oddball:2"
+],
+"3412": [
+"A:match:?",
+"B:distractor:2"
+]
+},
+"zirconium": {
+"3501": [
+"A:oddball:?",
+"B:oddball:3",
+"relocated-from:zicronium"
+],
+"3499": [
+"A:match:?",
+"B:distractor:3",
+"relocated-from:zicronium"
+]
+},
+"tinsel": {
+"3181": [
+"A:oddball:?",
+"B:oddball:4"
+],
+"3184": [
+"A:match:?",
+"B:distractor:4"
+]
+},
+"mortar": {
+"1815": [
+"note:completed"
+],
+"1823": [
+"note:completed"
+]
+},
+"petroleum": {
+"2140": [
+"note:completed",
+"relocated-from:tar"
+]
+},
+"fleece": {
+"1060": [
+"note:completed"
+],
+"1075": [
+"note:completed"
+]
+},
+"talc": {
+"3033": [
+"note:completed"
+],
+"3035": [
+"note:completed"
+]
+},
+"tar": {
+"3058": [
+"note:completed"
+]
+}
+}
+}
