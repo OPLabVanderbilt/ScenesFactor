@@ -16,7 +16,10 @@ trials in their browser and send back a ZIP.
 - Browse a **category** (algae, aluminium, … for STUFF; artichoke, bacon, … for
   THINGS). Distractors are always drawn from the **same category**.
 - Already-used images (from the existing texture spreadsheets) are flagged
-  **USED** so you don't reuse them; images you use this session are flagged **USED•**.
+  **USED**; images you use this session are flagged **USED•**. Reusing an image is
+  **not blocked** — but if you assign one that's used elsewhere, the slot shows a
+  **⚠ used elsewhere** warning, and hovering a USED badge or the warning lists where
+  it was used (which existing/spreadsheet trial, or which trial this session).
 - **Matching trial** = 1 *study* + 3 options (the correct *match* is a second,
   possibly-overlapping crop of the study image; 2 *distractors* are crops from two
   other same-category images).
@@ -29,6 +32,10 @@ trials in their browser and send back a ZIP.
   - **All tiles** — one adjustment applied to every tile in the trial.
   - **Per tile** — click a tile in the preview grid to give it its own
     lightness/saturation/contrast. Tiles with a custom adjustment show an `adj` badge.
+- **Review** — the "Built trials — review" panel below the workspace shows every
+  built trial: each tile at a glance with its role, the **correct answer starred and
+  outlined**, and its filename. **Edit** loads a trial back into the workspace to
+  change it (it re-adds at the end); **Remove** deletes it.
 - **Export ZIP** produces the finished PNGs + a manifest + a used-list for merge-back.
 
 ---
@@ -54,10 +61,13 @@ python3 -m http.server 8899
 
 ```
 stimuli/
-  t01_algae0012_study.png        # matching study tile (part 0)
-  t01_algae0012_part2.png        # the match (same source as study)
-  t01_algae0010_part1.png        # a distractor
-  t01_algae0011_part3.png        # a distractor
+  t01_algae0012_study.png             # matching study tile (the reference)
+  t01_algae0012_part3_match.png       # the MATCH = correct answer (same source as study)
+  t01_algae0010_part1_distractor.png  # a distractor
+  t01_algae0011_part2_distractor.png  # a distractor
+  ...
+  t02_algae0001_part1_same.png        # oddball trial: a "same" tile
+  t02_algae0002_part2_oddball.png     # the ODDBALL = correct answer
   ...
 manifest.json                    # per-trial: task, category, answer_part, adjustment_mode,
                                  #   each tile's role, source image, crop region, and its
@@ -65,9 +75,15 @@ manifest.json                    # per-trial: task, category, answer_part, adjus
 used_update.json                 # { dataset: { category: { imagenum: true } } }
 ```
 
-Filename format: **`t##_category####_part#.png`** (the study tile uses `_study`
-instead of `_part#`). `####` is the source-image id, so provenance is in the name;
-the **answer key** (which part is the match / oddball) lives in `manifest.json`.
+Filename format: **`t##_category####_part#_role.png`** (the study tile uses `_study`).
+`####` is the source-image id (provenance in the name), and **`role` marks the
+correct answer**: the `_match` tile (matching) or the `_oddball` tile (oddball) is
+the target; the others are `_distractor` / `_same`. The numeric answer key is also
+in `manifest.json` (`answer_part`).
+
+> Note: because the answer role is in the filename, don't hand the raw filenames to
+> participants in a way they could inspect — use them for building/QA, and let your
+> experiment code map them to neutral display names.
 
 ---
 

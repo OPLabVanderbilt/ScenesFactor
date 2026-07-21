@@ -62,6 +62,8 @@
   .slot .sub { color: #777; font-size: 11px; }
   .slot .ok { color: #1a7; font-weight: 700; }
   .slot .todo { color: #c60; }
+  .slot.dup { border-color: #e0a800; box-shadow: 0 0 0 1px #f0d060 inset; }
+  .slot .dup-warn { color: #a06000; font-weight: 700; font-size: 10px; margin-top: 3px; cursor: help; }
 
   .work { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
   .stage { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
@@ -95,13 +97,22 @@
   .assemble-row { margin-top: 12px; display: flex; gap: 8px; }
 
   .done-list { margin-top: 16px; }
-  .done-list h3 { font-size: 14px; margin: 0 0 6px; }
-  .done-item { display: flex; gap: 10px; align-items: center; font-size: 12px; padding: 5px 8px;
-               border: 1px solid #eee; border-radius: 5px; margin-bottom: 4px; background: #fff; }
-  .done-item .thumbs { display: flex; gap: 3px; }
-  .done-item .thumbs canvas { width: 34px; height: 34px; border-radius: 3px; border: 1px solid #ddd; }
-  .done-item .rm { margin-left: auto; color: #a00; cursor: pointer; border: 1px solid #e0a0a0;
-                   border-radius: 3px; padding: 2px 7px; background: #fff; font-size: 11px; }
+  .done-list h3 { font-size: 14px; margin: 0 0 8px; }
+  .review-card { border: 1px solid #e0e0e0; border-radius: 8px; background: #fff; padding: 10px 12px; margin-bottom: 10px; }
+  .review-head { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 8px; }
+  .review-head .rmeta { color: #666; font-size: 12px; }
+  .review-btns { margin-left: auto; display: flex; gap: 6px; }
+  .rbtn { font-size: 11px; padding: 3px 11px; border: 1px solid #bbb; background: #fff; border-radius: 4px; cursor: pointer; }
+  .rbtn:hover { background: #f0f6fc; border-color: #2a7ab8; }
+  .rbtn.danger { color: #a00; border-color: #e0a0a0; }
+  .rbtn.danger:hover { background: #ffe8e8; border-color: #c44; }
+  .review-tiles { display: flex; gap: 10px; flex-wrap: wrap; }
+  .rtile { text-align: center; width: 74px; }
+  .rtile canvas { width: 74px; height: 74px; border: 1px solid #ddd; border-radius: 4px; background: #eee; }
+  .rtile.answer canvas { outline: 3px solid #2a8; outline-offset: 1px; }
+  .rrole { font-size: 10px; color: #666; margin-top: 2px; }
+  .rtile.answer .rrole { color: #1a7; font-weight: 700; }
+  .rfile { font-size: 8px; color: #999; word-break: break-all; margin-top: 1px; line-height: 1.15; }
 
   .empty { color: #999; font-size: 13px; padding: 20px; text-align: center; }
   .banner { background: #fff8d9; border: 1px solid #e6cf72; color: #6b5500; padding: 6px 10px;
@@ -248,6 +259,31 @@ function isUsed(dataset, cat, file) {
   const sess = S.sessionUsed[dataset] && S.sessionUsed[dataset][cat] && S.sessionUsed[dataset][cat][num];
   return baked ? "baked" : (sess ? "session" : null);
 }
+function prettyTag(tag) {
+  const p = tag.split(":");
+  if (p[0] === "A" || p[0] === "B") return `${p[1] || "used"} in existing trial ${p[2] || "?"}`;
+  if (p[0] === "note") return "marked completed (spreadsheet)";
+  if (p[0] === "relocated-from") return null;      // internal bookkeeping
+  if (p[0] === "session") return "imported collaborator session";
+  return tag;
+}
+// Everywhere this image is used: prior/spreadsheet trials + other trials built this session.
+function usageOf(dataset, cat, file) {
+  const num = stem(file);
+  const out = [];
+  const baked = USED[dataset] && USED[dataset][cat] && USED[dataset][cat][num];
+  if (baked) for (const t of baked) { const p = prettyTag(t); if (p) out.push(p); }
+  const seen = new Set();
+  for (const tr of S.trials) {
+    if (tr.dataset !== dataset) continue;
+    for (const t of tr.tiles) {
+      if (t.source.cat === cat && t.source.num === num && !seen.has(tr.id)) {
+        seen.add(tr.id); out.push(`trial #${tr.id} this session (${t.role})`);
+      }
+    }
+  }
+  return out;
+}
 function markSessionUsed(dataset, cat, file) {
   const num = stem(file);
   (S.sessionUsed[dataset] = S.sessionUsed[dataset] || {});
@@ -343,6 +379,8 @@ function renderPool() {
     const u = isUsed(S.dataset, S.category, f);
     if (S.hideUsed && u) continue;
     const cell = el("div", "pcell" + (u === "baked" ? " used" : u === "session" ? " used sess-used" : ""));
+    if (u) { const usage = usageOf(S.dataset, S.category, f);
+      if (usage.length) cell.title = "Used elsewhere:\n• " + usage.join("\n• "); }
     // is this file assigned to a slot in the current trial?
     const slotKey = assignedSlotOf(f);
     if (slotKey) { cell.classList.add("assigned"); cell.appendChild(el("span", "slotbadge", slotKey)); }
@@ -374,10 +412,12 @@ function renderSlots() {
     const hasImg = st && st.img;
     const placed = st ? st.regions.filter(Boolean).length : 0;
     const done = hasImg && placed >= cfg.regions;
-    const d = el("div", "slot" + (S.activeSlot === cfg.key ? " active" : ""));
+    const usage = hasImg ? usageOf(S.dataset, st.img.cat, st.img.file) : [];
+    const d = el("div", "slot" + (S.activeSlot === cfg.key ? " active" : "") + (usage.length ? " dup" : ""));
     d.innerHTML = `<div class="st">${cfg.label}</div>`
       + `<div class="sub">${cfg.sub}</div>`
-      + `<div class="${done ? "ok" : "todo"}">${hasImg ? st.img.cat + " " + idToken(S.dataset, st.img.file) : "no image"} · ${placed}/${cfg.regions} crops</div>`;
+      + `<div class="${done ? "ok" : "todo"}">${hasImg ? st.img.cat + " " + idToken(S.dataset, st.img.file) : "no image"} · ${placed}/${cfg.regions} crops</div>`
+      + (usage.length ? `<div class="dup-warn" title="Also used:&#10;• ${usage.join("&#10;• ")}">⚠ used elsewhere (${usage.length})</div>` : "");
     d.addEventListener("click", () => { S.activeSlot = cfg.key; S.activeRegion = firstUnplaced(cfg.key); renderSlots(); drawStage(); });
     wrap.appendChild(d);
   }
@@ -391,9 +431,11 @@ function firstUnplaced(key) {
 }
 function assignToActiveSlot(file) {
   const key = S.activeSlot; const cfg = slotCfg(key);
-  // prevent reusing the same image in two slots of one trial
+  // same image already in another slot of THIS trial — allow, but confirm (not a hard block)
   const other = assignedSlotOf(file);
-  if (other && other !== key) { alert(`That image is already assigned to slot "${other}".`); return; }
+  if (other && other !== key) {
+    if (!confirm(`This image is already assigned to slot "${other}" in this trial. Use it in "${key}" as well?`)) return;
+  }
   const img = { cat: S.category, file, num: stem(file), dataset: S.dataset };
   const loaded = new Image();
   loaded.onload = () => { drawStage(); };
@@ -652,7 +694,7 @@ function addTrial() {
   const rendered = tiles.map(t => {
     const cv = document.createElement("canvas");
     renderTileTo(cv, S.slots[t.slot], t.region, t.slot, t.ri);
-    return { ...t, canvas: cv, adj: { ...adjFor(t.slot, t.ri) }, filename: tileFilename(trialNum, cat, t) };
+    return { ...t, canvas: cv, adj: { ...adjFor(t.slot, t.ri) }, filename: tileFilename(trialNum, cat, t, S.dataset) };
   });
   const trial = {
     id: trialNum, task: S.task, dataset: S.dataset, category: cat,
@@ -667,32 +709,90 @@ function addTrial() {
   resetCurrentTrial(); renderCategories(); renderDoneList(); refreshExport();
 }
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } }
-function tileFilename(trialNum, cat, t) {
+function tileFilename(trialNum, cat, t, dataset) {
+  // role is baked into the name so the correct answer is obvious:
+  //   matching -> the "match" tile is correct (distractors are "distractor")
+  //   oddball  -> the "oddball" tile is correct (others are "same")
   const tt = String(trialNum).padStart(2, "0");
-  const idtok = idToken(S.dataset, t.source.file);
-  const partLabel = t.role === "study" ? "study" : "part" + t.part;
+  const idtok = idToken(dataset, t.source.file);
+  const partLabel = t.role === "study" ? "study" : `part${t.part}_${t.role}`;
   return `t${tt}_${cat}${idtok}_${partLabel}.png`;
 }
 
 function renderDoneList() {
   const box = $("done-list"); box.innerHTML = "";
   if (!S.trials.length) return;
-  box.appendChild(el("h3", null, `Built trials (${S.trials.length})`));
+  box.appendChild(el("h3", null, `Built trials — review (${S.trials.length})`));
   S.trials.forEach((tr, idx) => {
-    const item = el("div", "done-item");
-    item.appendChild(el("span", null, `<b>#${tr.id}</b> ${tr.task} · ${tr.category} · ans part ${tr.answer_part}`));
-    const thumbs = el("div", "thumbs");
-    tr.tiles.forEach(t => { const cv = el("canvas"); cv.width = cv.height = 40;
-      cv.getContext("2d").drawImage(t.canvas, 0, 0, 40, 40); thumbs.appendChild(cv); });
-    item.appendChild(thumbs);
-    const rm = el("button", "rm", "remove");
-    rm.addEventListener("click", () => { S.trials.splice(idx, 1); renumber(); saveSession(); renderDoneList(); refreshExport(); renderCategories(); renderPool(); });
-    item.appendChild(rm);
-    box.appendChild(item);
+    const card = el("div", "review-card");
+    const head = el("div", "review-head");
+    head.innerHTML = `<b>#${tr.id}</b> · ${tr.task} · ${tr.category}`
+      + ` · <span class="rmeta">answer: part ${tr.answer_part}</span>`
+      + ` · <span class="rmeta">adj: ${tr.adjMode}</span>`;
+    const btns = el("div", "review-btns");
+    const edit = el("button", "rbtn", "Edit");
+    edit.addEventListener("click", () => editTrial(idx));
+    const rm = el("button", "rbtn danger", "Remove");
+    rm.addEventListener("click", () => {
+      if (!confirm(`Remove trial #${tr.id}?`)) return;
+      S.trials.splice(idx, 1); renumber(); rebuildSessionUsed(); saveSession();
+      renderDoneList(); refreshExport(); renderCategories(); renderPool(); renderSlots();
+    });
+    btns.appendChild(edit); btns.appendChild(rm);
+    head.appendChild(btns);
+    card.appendChild(head);
+    const row = el("div", "review-tiles");
+    tr.tiles.forEach(t => {
+      const isAns = t.part === tr.answer_part;
+      const cell = el("div", "rtile" + (isAns ? " answer" : ""));
+      const cv = el("canvas"); cv.width = cv.height = 74;
+      cv.getContext("2d").drawImage(t.canvas, 0, 0, 74, 74);
+      cell.appendChild(cv);
+      cell.appendChild(el("div", "rrole", t.role + (isAns ? " ★" : "")));
+      cell.appendChild(el("div", "rfile", t.filename));
+      row.appendChild(cell);
+    });
+    card.appendChild(row);
+    box.appendChild(card);
   });
 }
+// Load a previously built trial back into the workspace to modify it.
+// (It is removed from the built list; clicking "Add trial" re-adds it at the end.)
+function editTrial(idx) {
+  const tr = S.trials[idx];
+  S.task = tr.task;
+  [...$("task-seg").children].forEach(x => x.classList.toggle("active", x.dataset.task === tr.task));
+  S.dataset = tr.dataset;
+  [...$("dataset-seg").children].forEach(x => x.classList.toggle("active", x.dataset.ds === tr.dataset));
+  S.category = tr.category;
+  S.slots = {}; S.tileAdj = {}; S.selectedTile = null;
+  S.adjMode = tr.adjMode; S.adj = { ...tr.adj };
+  [...$("adj-mode-seg").children].forEach(x => x.classList.toggle("active", x.dataset.mode === S.adjMode));
+  for (const t of tr.tiles) {
+    const key = t.slot;
+    if (!S.slots[key]) {
+      const img = { cat: t.source.cat, file: t.source.file, num: t.source.num, dataset: tr.dataset };
+      const loaded = new Image();
+      loaded.onload = () => { drawStage(); renderTiles(); refreshAddBtn(); };
+      loaded.src = imgPath(tr.dataset, t.source.cat, t.source.file);
+      S.slots[key] = { img, loaded, regions: [] };
+    }
+    S.slots[key].regions[t.ri] = { ...t.region };
+    S.tileAdj[key + "#" + t.ri] = { ...t.adj };
+  }
+  S.activeSlot = TASK_CFG[S.task].slots[0].key; S.activeRegion = 0;
+  // pull it out of the built list while editing; renumber & recompute used flags
+  S.trials.splice(idx, 1); renumber(); rebuildSessionUsed(); saveSession();
+  renderCategories(); renderPool(); renderSlots(); drawStage(); renderTiles();
+  syncSliders(); refreshAddBtn(); renderDoneList(); refreshExport();
+  window.scrollTo(0, 0);
+}
 function renumber() { S.trials.forEach((tr, i) => { tr.id = i + 1;
-  tr.tiles.forEach(t => t.filename = tileFilename(tr.id, tr.category, t)); }); }
+  tr.tiles.forEach(t => t.filename = tileFilename(tr.id, tr.category, t, tr.dataset)); }); }
+function rebuildSessionUsed() {
+  S.sessionUsed = {};
+  for (const tr of S.trials) for (const t of tr.tiles) markSessionUsed(tr.dataset, t.source.cat, t.source.file);
+}
 
 // ------------------------------------------------------------------ export (dependency-free ZIP, store method)
 async function exportZip() {
