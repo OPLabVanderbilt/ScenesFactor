@@ -240,6 +240,7 @@ const S = {
   selectedTile: null,                // {slot, ri} being edited in per-tile mode
 };
 const LS_KEY = "texbuilder_session_v1";
+let PENDING_META = null;   // saved trials awaiting reconstruction after data loads
 
 // ------------------------------------------------------------------ util
 const $ = id => document.getElementById(id);
@@ -293,14 +294,15 @@ function markSessionUsed(dataset, cat, file) {
 function saveSession() {
   try { localStorage.setItem(LS_KEY, JSON.stringify({ sessionUsed: S.sessionUsed, trialMeta: S.trials.map(stripBlobs) })); } catch (e) {}
 }
-function stripBlobs(t) { return { task: t.task, dataset: t.dataset, category: t.category, adj: t.adj,
-  tiles: t.tiles.map(x => ({ role: x.role, part: x.part, source: x.source, region: x.region })), answer_part: t.answer_part, id: t.id }; }
+function stripBlobs(t) { return { id: t.id, task: t.task, dataset: t.dataset, category: t.category,
+  adjMode: t.adjMode, adj: t.adj, answer_part: t.answer_part,
+  tiles: t.tiles.map(x => ({ role: x.role, part: x.part, source: x.source, region: x.region, adj: x.adj })) }; }
 function loadSession() {
   try {
     const raw = localStorage.getItem(LS_KEY); if (!raw) return;
     const d = JSON.parse(raw);
     if (d.sessionUsed) S.sessionUsed = d.sessionUsed;
-    // trialMeta is informational on reload (rendered tiles are not persisted); keep count context only
+    if (d.trialMeta && d.trialMeta.length) PENDING_META = d.trialMeta;  // reconstruct after data loads
   } catch (e) {}
 }
 
@@ -316,6 +318,7 @@ async function init() {
   renderCategories();
   resetCurrentTrial();
   updateBanner();
+  if (PENDING_META) await reconstructTrials(PENDING_META);
 }
 function updateBanner() {
   const cats = MANIFEST[S.dataset];
@@ -600,18 +603,51 @@ $("adj-mode-seg").addEventListener("click", e => {
 function wireWorkspace() { $("add-trial-btn").addEventListener("click", addTrial); }
 
 // ------------------------------------------------------------------ tile rendering
-function renderTileTo(cv, slot, region, slotKey, ri) {
+// primitive: paint a square crop of `img` (region in normalized coords) into a 250px canvas
+function paintCrop(cv, img, region, filter) {
   cv.width = TILE_PX; cv.height = TILE_PX;
   const c = cv.getContext("2d");
   c.fillStyle = "#eee"; c.fillRect(0, 0, TILE_PX, TILE_PX);
-  if (!slot || !slot.loaded || !slot.loaded.complete || !slot.loaded.naturalWidth || !region) return;
-  const iw = slot.loaded.naturalWidth, ih = slot.loaded.naturalHeight, minEdge = Math.min(iw, ih);
+  if (!img || !img.complete || !img.naturalWidth || !region) return;
+  const iw = img.naturalWidth, ih = img.naturalHeight, minEdge = Math.min(iw, ih);
   const sizePx = region.size * minEdge, half = sizePx / 2;
   let sx = region.cx * iw - half, sy = region.cy * ih - half;
   sx = Math.max(0, Math.min(iw - sizePx, sx)); sy = Math.max(0, Math.min(ih - sizePx, sy));
-  c.filter = filterStrFor(slotKey, ri);
-  c.drawImage(slot.loaded, sx, sy, sizePx, sizePx, 0, 0, TILE_PX, TILE_PX);
+  c.filter = filter;
+  c.drawImage(img, sx, sy, sizePx, sizePx, 0, 0, TILE_PX, TILE_PX);
   c.filter = "none";
+}
+function renderTileTo(cv, slot, region, slotKey, ri) {
+  paintCrop(cv, slot && slot.loaded, region, filterStrFor(slotKey, ri));
+}
+// Rebuild the rendered canvases for saved trials (from a previous session) so they
+// can be reviewed & exported again. Loads each source preview, then repaints tiles.
+async function reconstructTrials(metas) {
+  const cache = {};
+  const loadImg = (ds, cat, file) => {
+    const k = ds + "/" + cat + "/" + file;
+    if (!cache[k]) cache[k] = new Promise(res => {
+      const im = new Image(); im.onload = () => res(im); im.onerror = () => res(im);
+      im.src = imgPath(ds, cat, file);
+    });
+    return cache[k];
+  };
+  const trials = [];
+  for (const m of metas) {
+    const tiles = [];
+    for (const t of m.tiles) {
+      const img = await loadImg(m.dataset, t.source.cat, t.source.file);
+      const cv = document.createElement("canvas");
+      paintCrop(cv, img, t.region, adjToFilter(t.adj || { bri: 1, sat: 1, con: 1 }));
+      tiles.push({ ...t, canvas: cv, filename: tileFilename(m.id, m.category, t, m.dataset) });
+    }
+    trials.push({ id: m.id, task: m.task, dataset: m.dataset, category: m.category,
+      adjMode: m.adjMode || "all", adj: m.adj || { bri: 1, sat: 1, con: 1 },
+      answer_part: m.answer_part, tiles });
+  }
+  S.trials = trials;
+  rebuildSessionUsed();
+  renderDoneList(); refreshExport(); renderCategories(); renderPool();
 }
 // build the list of option tiles {role, slotKey, regionIndex} for current trial
 function currentOptionTiles() {

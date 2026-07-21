@@ -36,6 +36,10 @@ trials in their browser and send back a ZIP.
   built trial: each tile at a glance with its role, the **correct answer starred and
   outlined**, and its filename. **Edit** loads a trial back into the workspace to
   change it (it re-adds at the end); **Remove** deletes it.
+- **Work survives a reload** — built trials and used-marks are saved in the browser
+  (localStorage) and **reconstructed automatically when you reopen the tool**, so you
+  can review, edit, or export them in a later session. (This is per-browser; "Reset
+  session" clears it. Baked-in spreadsheet used-marks are always kept.)
 - **Export ZIP** produces the finished PNGs + a manifest + a used-list for merge-back.
 
 ---
