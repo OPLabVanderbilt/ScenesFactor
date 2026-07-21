@@ -99,6 +99,8 @@
   .done-list { margin-top: 16px; }
   .done-list h3 { font-size: 14px; margin: 0 0 8px; }
   .review-card { border: 1px solid #e0e0e0; border-radius: 8px; background: #fff; padding: 10px 12px; margin-bottom: 10px; }
+  .review-card.editing { border-color: #2a7ab8; box-shadow: 0 0 0 2px #d5e8f7; }
+  .editing-tag { color: #2a7ab8; font-weight: 700; font-size: 12px; }
   .review-head { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 8px; }
   .review-head .rmeta { color: #666; font-size: 12px; }
   .review-btns { margin-left: auto; display: flex; gap: 6px; }
@@ -186,6 +188,7 @@
         </div>
         <div class="assemble-row">
           <button class="btn primary" id="add-trial-btn" disabled style="flex:1;">Add trial ➜</button>
+          <button class="btn" id="cancel-edit-btn" style="display:none;">Cancel</button>
         </div>
       </div>
     </div>
@@ -238,6 +241,7 @@ const S = {
   adjMode: "all",                    // "all" | "individual"
   tileAdj: {},                       // "slot#ri" -> {bri,sat,con}  (per-tile mode)
   selectedTile: null,                // {slot, ri} being edited in per-tile mode
+  editingIndex: null,                // index into S.trials being re-edited (null = building new)
 };
 const LS_KEY = "texbuilder_session_v1";
 let PENDING_META = null;   // saved trials awaiting reconstruction after data loads
@@ -275,8 +279,10 @@ function usageOf(dataset, cat, file) {
   const baked = USED[dataset] && USED[dataset][cat] && USED[dataset][cat][num];
   if (baked) for (const t of baked) { const p = prettyTag(t); if (p) out.push(p); }
   const seen = new Set();
+  const editing = S.editingIndex != null ? S.trials[S.editingIndex] : null;
   for (const tr of S.trials) {
     if (tr.dataset !== dataset) continue;
+    if (tr === editing) continue;   // the trial you're editing isn't "elsewhere"
     for (const t of tr.tiles) {
       if (t.source.cat === cat && t.source.num === num && !seen.has(tr.id)) {
         seen.add(tr.id); out.push(`trial #${tr.id} this session (${t.role})`);
@@ -296,7 +302,24 @@ function saveSession() {
 }
 function stripBlobs(t) { return { id: t.id, task: t.task, dataset: t.dataset, category: t.category,
   adjMode: t.adjMode, adj: t.adj, answer_part: t.answer_part,
-  tiles: t.tiles.map(x => ({ role: x.role, part: x.part, source: x.source, region: x.region, adj: x.adj })) }; }
+  tiles: t.tiles.map(x => ({ role: x.role, part: x.part, slot: x.slot, ri: x.ri,
+                             source: x.source, region: x.region, adj: x.adj })) }; }
+// Older saves (and any tile missing slot/ri) -> derive them from role + the task layout,
+// so trials saved by earlier versions can still be edited.
+function ensureSlotRefs(tr) {
+  if (!tr.tiles.some(t => t.slot === undefined || t.ri === undefined)) return tr;
+  const cfg = TASK_CFG[tr.task]; if (!cfg) return tr;
+  const positions = [];
+  for (const s of cfg.slots) s.roles.forEach((role, i) => positions.push({ role, slot: s.key, ri: i }));
+  const taken = new Set();
+  for (const t of tr.tiles) if (t.slot !== undefined && t.ri !== undefined) taken.add(t.slot + "#" + t.ri);
+  for (const t of tr.tiles) {
+    if (t.slot !== undefined && t.ri !== undefined) continue;
+    const p = positions.find(p => p.role === t.role && !taken.has(p.slot + "#" + p.ri));
+    if (p) { t.slot = p.slot; t.ri = p.ri; taken.add(p.slot + "#" + p.ri); }
+  }
+  return tr;
+}
 function loadSession() {
   try {
     const raw = localStorage.getItem(LS_KEY); if (!raw) return;
@@ -347,8 +370,8 @@ function wireHeader() {
   $("hide-used").addEventListener("change", e => { S.hideUsed = e.target.checked; renderPool(); });
   $("reset-btn").addEventListener("click", () => {
     if (!confirm("Clear this session's built trials and 'used' marks? (Baked-in used marks from the spreadsheet stay.)")) return;
-    S.trials = []; S.sessionUsed = {}; saveSession();
-    renderCategories(); renderPool(); resetCurrentTrial(); renderDoneList(); refreshExport();
+    S.trials = []; S.sessionUsed = {}; S.editingIndex = null; saveSession();
+    renderCategories(); renderPool(); resetCurrentTrial(); renderDoneList(); refreshExport(); updateEditUI();
   });
   $("export-btn").addEventListener("click", exportZip);
 }
@@ -600,7 +623,10 @@ $("adj-mode-seg").addEventListener("click", e => {
   if (S.adjMode === "individual") { initTileAdj(); if (!S.selectedTile) S.selectedTile = { slot: S.activeSlot, ri: S.activeRegion }; }
   syncSliders(); renderTiles();
 });
-function wireWorkspace() { $("add-trial-btn").addEventListener("click", addTrial); }
+function wireWorkspace() {
+  $("add-trial-btn").addEventListener("click", addTrial);
+  $("cancel-edit-btn").addEventListener("click", cancelEdit);
+}
 
 // ------------------------------------------------------------------ tile rendering
 // primitive: paint a square crop of `img` (region in normalized coords) into a 250px canvas
@@ -645,6 +671,7 @@ async function reconstructTrials(metas) {
       adjMode: m.adjMode || "all", adj: m.adj || { bri: 1, sat: 1, con: 1 },
       answer_part: m.answer_part, tiles });
   }
+  trials.forEach(ensureSlotRefs);
   S.trials = trials;
   rebuildSessionUsed();
   renderDoneList(); refreshExport(); renderCategories(); renderPool();
@@ -704,7 +731,8 @@ function refreshExport() { $("export-btn").disabled = S.trials.length === 0; $("
 function addTrial() {
   if (!trialComplete()) return;
   const cfg = TASK_CFG[S.task];
-  const trialNum = S.trials.length + 1;
+  const editing = S.editingIndex != null && S.trials[S.editingIndex];
+  const trialNum = editing ? S.trials[S.editingIndex].id : S.trials.length + 1;
   const cat = S.category;
   // gather option tiles, shuffle
   let options = currentOptionTiles().map(o => {
@@ -736,13 +764,11 @@ function addTrial() {
     id: trialNum, task: S.task, dataset: S.dataset, category: cat,
     adjMode: S.adjMode, adj: { ...S.adj }, answer_part: answerPart, tiles: rendered,
   };
-  S.trials.push(trial);
-  // mark all involved source images as used (this session)
-  for (const cfg2 of TASK_CFG[S.task].slots) {
-    const st = S.slots[cfg2.key]; markSessionUsed(S.dataset, st.img.cat, st.img.file);
-  }
+  if (editing) { S.trials[S.editingIndex] = trial; S.editingIndex = null; }
+  else S.trials.push(trial);
+  rebuildSessionUsed();   // recompute used-marks from the current set of trials
   saveSession();
-  resetCurrentTrial(); renderCategories(); renderDoneList(); refreshExport();
+  resetCurrentTrial(); renderCategories(); renderDoneList(); refreshExport(); updateEditUI();
 }
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } }
 function tileFilename(trialNum, cat, t, dataset) {
@@ -760,19 +786,23 @@ function renderDoneList() {
   if (!S.trials.length) return;
   box.appendChild(el("h3", null, `Built trials — review (${S.trials.length})`));
   S.trials.forEach((tr, idx) => {
-    const card = el("div", "review-card");
+    const card = el("div", "review-card" + (S.editingIndex === idx ? " editing" : ""));
     const head = el("div", "review-head");
     head.innerHTML = `<b>#${tr.id}</b> · ${tr.task} · ${tr.category}`
       + ` · <span class="rmeta">answer: part ${tr.answer_part}</span>`
-      + ` · <span class="rmeta">adj: ${tr.adjMode}</span>`;
+      + ` · <span class="rmeta">adj: ${tr.adjMode}</span>`
+      + (S.editingIndex === idx ? ` · <span class="editing-tag">editing…</span>` : "");
     const btns = el("div", "review-btns");
     const edit = el("button", "rbtn", "Edit");
     edit.addEventListener("click", () => editTrial(idx));
     const rm = el("button", "rbtn danger", "Remove");
     rm.addEventListener("click", () => {
       if (!confirm(`Remove trial #${tr.id}?`)) return;
+      // keep the "currently editing" pointer valid
+      if (S.editingIndex === idx) { S.editingIndex = null; resetCurrentTrial(); }
+      else if (S.editingIndex != null && idx < S.editingIndex) S.editingIndex--;
       S.trials.splice(idx, 1); renumber(); rebuildSessionUsed(); saveSession();
-      renderDoneList(); refreshExport(); renderCategories(); renderPool(); renderSlots();
+      renderDoneList(); refreshExport(); renderCategories(); renderPool(); renderSlots(); updateEditUI();
     });
     btns.appendChild(edit); btns.appendChild(rm);
     head.appendChild(btns);
@@ -793,9 +823,13 @@ function renderDoneList() {
   });
 }
 // Load a previously built trial back into the workspace to modify it.
-// (It is removed from the built list; clicking "Add trial" re-adds it at the end.)
+// The trial stays in the list until you click "Save changes" (or Cancel to discard).
 function editTrial(idx) {
-  const tr = S.trials[idx];
+  const tr = ensureSlotRefs(S.trials[idx]);
+  if (tr.tiles.some(t => !t.slot || t.ri === undefined)) {
+    alert("This trial is missing crop-slot info and can't be edited. You can still review, export, or remove it.");
+    return;
+  }
   S.task = tr.task;
   [...$("task-seg").children].forEach(x => x.classList.toggle("active", x.dataset.task === tr.task));
   S.dataset = tr.dataset;
@@ -817,11 +851,19 @@ function editTrial(idx) {
     S.tileAdj[key + "#" + t.ri] = { ...t.adj };
   }
   S.activeSlot = TASK_CFG[S.task].slots[0].key; S.activeRegion = 0;
-  // pull it out of the built list while editing; renumber & recompute used flags
-  S.trials.splice(idx, 1); renumber(); rebuildSessionUsed(); saveSession();
+  S.editingIndex = idx;   // trial stays in the list; "Save changes" replaces it in place
   renderCategories(); renderPool(); renderSlots(); drawStage(); renderTiles();
-  syncSliders(); refreshAddBtn(); renderDoneList(); refreshExport();
+  syncSliders(); refreshAddBtn(); renderDoneList(); updateEditUI();
   window.scrollTo(0, 0);
+}
+function updateEditUI() {
+  const editing = S.editingIndex != null && S.trials[S.editingIndex];
+  $("add-trial-btn").textContent = editing ? `Save changes to #${S.trials[S.editingIndex].id} ➜` : "Add trial ➜";
+  $("cancel-edit-btn").style.display = editing ? "" : "none";
+}
+function cancelEdit() {
+  S.editingIndex = null;
+  resetCurrentTrial(); renderDoneList(); updateEditUI();
 }
 function renumber() { S.trials.forEach((tr, i) => { tr.id = i + 1;
   tr.tiles.forEach(t => t.filename = tileFilename(tr.id, tr.category, t, tr.dataset)); }); }
