@@ -1,0 +1,258 @@
+/* Standardize image grid for the 3AFC match task */
+
+/* All images same height, variable width; no hover; no right-click feel */
+
+#jspsych-html-button-response-btngroup {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  justify-content: center !important;
+  align-items: flex-end !important;   /* sit on same baseline */
+  gap: 24px !important;
+  width: 100%;
+}
+
+/* Kill jsPsych's default button styling + hover */
+.sf-btn,
+.sf-btn:hover,
+.sf-btn:focus,
+.sf-btn:active {
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  outline: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  display: inline-block;
+  transition: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+.sf-cell {
+  flex: 0 0 auto;
+  height: 250px;
+  /* display: flex; */
+ /* align-items: ;*/
+  justify-content:space-around;
+  /* grey panel behind the mosaics */
+  background-color: rgb(116,116,116);
+  padding: 20px;
+  border-radius: 8px;   /* optional; drop if you want hard corners */
+}
+
+.sf-cell img {
+  height: 250px;
+  width: auto;
+  /* display: block; */
+  outline: solid 10px rgb(116,116,116);   /*none !important;*/
+  /*outline: none !important;*/
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}
+
+
+.sf-cell.sf-correct img {
+  border: 4px solid white;
+  outline: solid 10px rgb(116,116,116);   /*none !important;*/
+  /* box-shadow: 0 0 12px rgba(46, 204, 113, 0.6); */
+  /* outline: none !important; */
+   height: 250px;
+  width: auto;
+  /* display: block; */
+}
+
+/* Grey panel that sits behind BOTH the top image and the row of 3 */
+.sf-feedback-panel {
+  display: inline-flex;         /* shrink to fit the mosaics, not full browser width */
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;                    /* space between top image and the row â€” adjust to taste */
+  background-color: rgb(116,116,116);
+  padding: 20px;
+  border-radius: 8px;           /* optional; remove for hard corners */
+}
+
+.sf-panel-trial .sf-prompt {
+  color: rgb(243, 240, 240);
+  font-weight: bold;
+  font-size: 20px;
+  text-align: center;
+  max-width: 200px;      /* keeps long text inside the ~220px cell */
+  align-self: center;
+  justify-self: center;
+}
+
+/* Inside the grey selection panel, let the button row hug its 3 mosaics
+   instead of stretching to width:100% (jsPsych's default). */
+#jspsych-content.sf-panel-trial #jspsych-html-button-response-btngroup {
+  width: auto !important;
+}
+/* 
+#jspsych-content.sf-check-field {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;  /* study image pins to top; box won't recenter */
+ /* gap: 24px;                    /* space between target and the choice buttons */
+ /* width: 960px;                 /* FIXED â€” fits the 3-choice row (tune to stimuli) */
+/*  min-height: 740px;            /* FIXED â€” fits study + choices (tune to stimuli) */
+/*  box-sizing: border-box;
+  max-width: none;              /* override jsPsych's default max-width */
+ /* background-color: rgb(119,119,119);
+  padding: 20px;
+  border-radius: 8px;           /* optional; remove for hard corners */
+/*}
+/*#jspsych-content.sf-check-box {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;  /* study image pins to top; box won't recenter */
+ /* gap: 24px;                    /* space between target and the choice buttons */
+/*  width: 100px;                 /* FIXED â€” fits the 3-choice row (tune to stimuli) */
+/*  min-height: 0px;            /* FIXED â€” fits study + choices (tune to stimuli) */
+/*  box-sizing: border-box;
+  max-width: none;              /* override jsPsych's default max-width */
+/*  background-color: rgb(111,111,111);
+  padding: 20px;
+  border-radius: 8px;           optional; remove for hard corners
+} */
+
+
+/* Selection trial: same grey panel behind the target + choice buttons.
+   Applied only to trials tagged with css_classes: ['sf-panel-trial'].
+
+   FIXED SIZE so the grey box does NOT change dimensions between the
+   study-only presentation screen (first push, choices absent) and the
+   full trial (study + 3 choices). The box size no longer depends on its
+   contents, so the study image simply sits, top-anchored & centered,
+   inside the same box the choices will fill.
+
+   Tune `width` / `min-height` to your stimuli: width must be wide enough
+   for the 3-choice row, min-height tall enough for study + choices. */
+
+/*this creates the grid layout for the mosaics (sf-panel-trial is added TO #jspsych-content)*/
+#jspsych-content.sf-panel-trial {
+  display:grid;
+  grid-template-rows: repeat(3, 220px);
+  grid-template-columns: repeat(3, 220px);
+  gap: 24px;
+  justify-items: center;
+  align-items: center;
+  /* explicit content width (3*220 + 2*24 gaps) â€” max-content collapses here because
+     #jspsych-content is a flex item of jsPsych's wrapper, unlike the feedback's plain div.
+     Keep this equal to the .sf-fb-grid box so the trial and feedback panels match exactly. */
+  width: 708px;
+  /* jsPsych's default .jspsych-content { max-width: 95% } clamps this grid's
+     content width to ~0 here (its flex containing block collapses), leaving only
+     the padding visible. Kill the clamp so `width: 708px` is honored. */
+  max-width: none;
+  /*margin: 0 auto;*/
+  /* the enclosing grey box behind the whole study+choices arrangement.
+     The 3x3 grid is a fixed size, so the box stays identical between the
+     study-only (delay) phase and the full choice phase. */
+  background-color: rgb(116,116,116);
+  padding: 20px 100px;   /* 2nd value = extra grey to the left/right; raise/lower to taste */
+  border-radius: 8px;
+  transform: translateY(10px);   /* lower the entire grid + grey box by 10px */
+}
+
+.sf-panel-trial #jspsych-html-button-response-btngroup {
+  /* !important to beat the old row-layout rule (display:flex !important) at the top of this file */
+  display: contents !important;
+}
+
+/* ---- the study (target) dead center â€” same cell in the delay (keyboard) phase and
+        the choice (button) phase, so the study never moves between them ---- */
+.sf-panel-trial #jspsych-html-button-response-stimulus,
+.sf-panel-trial #jspsych-html-keyboard-response-stimulus {
+  grid-column: 2;   /* middle column */
+  grid-row: 2;      /* middle row     */
+}
+
+.sf-panel-trial .pos-top    { grid-column: 2; grid-row: 1; }
+.sf-panel-trial .pos-right  { grid-column: 3; grid-row: 2; }
+.sf-panel-trial .pos-bottom { grid-column: 2; grid-row: 3; }
+.sf-panel-trial .pos-left   { grid-column: 1; grid-row: 2; }
+/* study stays center: grid-column 2 / grid-row 2 (from before) */
+
+/* --- fit each mosaic INSIDE its 220px grid cell (the old row-layout .sf-cell used
+       height:250px + padding, which overflowed the tracks and overlapped neighbours) --- */
+#jspsych-content.sf-panel-trial .sf-cell,
+.sf-fb-grid .sf-cell {
+  height: auto;
+  padding: 0;
+  background: none;
+}
+#jspsych-content.sf-panel-trial .sf-cell img,
+.sf-fb-grid .sf-cell img {
+  height: 190px;   /* < the 220px track, so no overflow; bump tracks + this together for bigger */
+  outline: none;
+}
+
+/* --- FEEDBACK: same center+surround grid as the trial, correct answer highlighted white --- */
+.sf-fb-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 220px);
+  grid-template-rows: repeat(3, 220px);
+  gap: 24px;
+  justify-items: center;
+  align-items: center;
+  width: max-content;
+  margin: 0 auto;
+  background-color: rgb(115,115,115);
+  padding: 24px 120px;
+  border-radius: 8px;
+  transform: translateY(10px);   /* match the trial grid's 10px lower position */
+}
+.sf-fb-grid .sf-study   { grid-column: 2; grid-row: 2; }
+.sf-fb-grid .pos-top    { grid-column: 2; grid-row: 1; }
+.sf-fb-grid .pos-right  { grid-column: 3; grid-row: 2; }
+.sf-fb-grid .pos-bottom { grid-column: 2; grid-row: 3; }
+.sf-fb-grid .pos-left   { grid-column: 1; grid-row: 2; }
+.sf-fb-grid .sf-cell.sf-correct img { outline: 4px solid #ffffff; }
+
+
+
+/* 
+
+
+
+   #jspsych-content.sf-panel-trial {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;  
+  gap: 24px;                   
+  width: 960px;                
+  min-height: 740px;            
+  box-sizing: border-box;
+  max-width: none;             
+  background-color: rgb(115,115,115);
+  padding: 20px;
+  border-radius: 8px;           
+}
+
+.sf-choice-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 45px;
+  outline: none !important;
+}
+.sf-choice-row .sf-cell {
+  flex: 0 0 auto;
+  height: 250px;
+
+  background-color: rgb(115,115,115);
+  padding: 20px;
+  border-radius: 8px;  
+    /* outline: none !important; */
+/*
+} */
