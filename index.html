@@ -152,7 +152,7 @@ for (let trial of trials) {
   const slots = shuffledPositions.slice(0, trial.choices.length);
   const emptySlot = shuffledPositions[trial.choices.length];
 
-  const trialProgress = `<p style = "position: relative; text-align: center; left: 235px; top: -150px; font-size: 18px;"><b>Trial ${trial.trial}/${trials.length}</b>`;
+  const trialProgress = `<p style = "position: relative; text-align: center; left: 235px; top: -150px; font-size: 25px;"><b>Trial ${trial.trial}/${trials.length}</b>`;
 
   // 1) Fixation cross
   timeline.push({
@@ -160,6 +160,7 @@ for (let trial of trials) {
     prompt: trialProgress,
     stimulus: `<div class="fix-cross">+</div>`,
     choices: "NO_KEYS",
+    css_classes: ['sf-panel-trial'],
     trial_duration: FIXATION_MS,
     post_trial_gap: 0,
     data: { SbjID: sbjID, TrialNum: trial.trial, TrialPart: 'fixation' }
@@ -171,6 +172,7 @@ for (let trial of trials) {
     prompt: trialProgress,
     stimulus: `<div class="sf-cell"><img src="stimuli/${trial.study}" draggable="false" height="200px" ondragstart="return false;"></div>`,
     choices: "NO_KEYS",
+    css_classes: ['sf-panel-trial'],
     trial_duration: STUDY_MS,
     post_trial_gap: 0,
     data: { SbjID: sbjID, TrialNum: trial.trial, TrialPart: 'study' }
@@ -182,6 +184,7 @@ for (let trial of trials) {
     prompt: trialProgress,
     stimulus: `<div class="mask-cell"><img src="assets/pink_noise_mask.png" draggable="false" height="240px" ondragstart="return false;"></div>`,
     choices: "NO_KEYS",
+    css_classes: ['sf-panel-trial'],
     trial_duration: MASK_MS,
     post_trial_gap: 0,
     data: { SbjID: sbjID, TrialNum: trial.trial, TrialPart: 'mask' }
@@ -193,6 +196,7 @@ for (let trial of trials) {
     prompt: trialProgress,
     stimulus: `<div class="fix-cross">+</div>`,
     choices: "NO_KEYS",
+    css_classes: ['sf-panel-trial'],
     trial_duration: ISI_MS,
     post_trial_gap: 0,
     data: { SbjID: sbjID, TrialNum: trial.trial, TrialPart: 'isi' }
