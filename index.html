@@ -1,6 +1,6 @@
 <!DOCTYPE html>
     <head>
-        <title>Texture Presentation-Time Demo (v4)</title>
+        <title>Texture Masked-Presentation Demo (v4)</title>
         <!-- Load in the jspsych tools, plugins, and layout -->
   <script src="https://unpkg.com/jspsych@7.3.4" type="text/javascript"></script>
   <script src="https://unpkg.com/@jspsych/plugin-fullscreen@1.2.1"></script>
@@ -24,10 +24,29 @@
       text-align: center;
       z-index: 9999;
     }
+    .fix-cross {
+      width: 200px;
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 60px;
+      font-family: monospace;
+      color: #333;
+      margin: 0 auto;
+    }
+    .mask-cell {
+      width: 240px;
+      height: 240px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
     </style>
     </head>
     <body>
-    <div class="demo-banner">v4 presentation-time DEMO &mdash; not a real data-collection build. Study image hides after the listed time; choices stay up and wait for a response.</div>
+    <div class="demo-banner">v4 masked-presentation DEMO (separate test build) &mdash; fixation (500ms) &rarr; study (500ms) &rarr; pink-noise mask (200ms) &rarr; fixation ISI (250ms) &rarr; choices (unlimited response).</div>
     </body>
 
 <script>
@@ -84,7 +103,7 @@ if (sbjID === undefined) {
 
 jsPsych.data.addProperties({
   sbjID: sbjID,
-  DemoBuild: 'v4_presentation_time_092726'
+  DemoBuild: 'v4_masked_presentation_092726'
 });
 
 // Timeline
@@ -92,16 +111,16 @@ var timeline = [];
 
 timeline.push({
   type: jsPsychFullscreen,
-  message: `<p>Welcome to the presentation-time demo!</p>
-  <p>This shows how the study image will hide after a set time on the easy trials, while
-  the answer choices stay up and wait for your click.</p>`,
+  message: `<p>Welcome to the masked-presentation demo!</p>
+  <p>Each trial: a fixation cross, then the study image briefly, then a noise mask, then a short
+  pause, then the answer choices (unlimited time to respond).</p>`,
   fullscreen_mode: true,
   on_start: function() {
     should_be_in_fullscreen = true;
   }
 });
 
-let images = [];
+let images = ['assets/pink_noise_mask.png'];
 for (let trial of trials) {
   for (let choice of trial.choices) {
     images.push(`stimuli/${choice}`);
@@ -117,57 +136,79 @@ timeline.push({
   continue_after_error: true
 });
 
+const FIXATION_MS = 500;
+const STUDY_MS = 500;
+const MASK_MS = 200;
+const ISI_MS = 250;
+
 for (let trial of trials) {
   const choiceHTML = trial.choices.map(choice =>
     `<div class="sf-cell"><img src="stimuli/${choice}" draggable="false" height="200px" ondragstart="return false;left:0;"></div>
 `
   );
 
-  // Position of each choice / the empty slot is randomized fresh per participant per trial,
-  // same convention as the main texture engine -- not stored in trials.js.
+  // Position of each choice / the empty slot is randomized fresh per participant per trial.
   const shuffledPositions = jsPsych.randomization.shuffle(['top', 'left', 'right', 'bottom']);
   const slots = shuffledPositions.slice(0, trial.choices.length);
   const emptySlot = shuffledPositions[trial.choices.length];
 
-  // Phase 1: study ALONE, visible for this trial's presentation time (the varied X).
+  const trialProgress = `<p style = "position: relative; text-align: center; left: 235px; top: -150px; font-size: 18px;"><b>Trial ${trial.trial}/${trials.length}</b>`;
+
+  // 1) Fixation cross
   timeline.push({
     type: jsPsychHtmlKeyboardResponse,
-    prompt: `<p style = "position: relative; text-align: center; left: 235px; top: -150px; font-size: 25px;"><b>Trial ${trial.trial}/${trials.length} &mdash; study visible for ${trial.presentationTime}ms</b>`,
-    stimulus: `
-    <div class="sf-cell"><img src="stimuli/${trial.study}" draggable="false" height="200px" ondragstart="return false;"></div>
-    <div class="sf-prompt">which texture matches the center?</div>`,
+    prompt: trialProgress,
+    stimulus: `<div class="fix-cross">+</div>`,
     choices: "NO_KEYS",
-    css_classes: ['sf-panel-trial'],
-    trial_duration: trial.presentationTime,
+    trial_duration: FIXATION_MS,
     post_trial_gap: 0,
-    data: {
-      SbjID: sbjID,
-      TrialNum: trial.trial,
-      CorrRes: trial.corrRes,
-      TrialType: trial.trialType,
-      Category: trial.category,
-      PresentationTimeMs: trial.presentationTime,
-      SourcePilot: trial.sourcePilot,
-      SourceOrigTrial: trial.sourceOrigTrial,
-      PilotAccuracy: trial.pilotAccuracy,
-      PilotItemRest: trial.pilotItemRest
-    },
+    data: { SbjID: sbjID, TrialNum: trial.trial, TrialPart: 'fixation' }
   });
 
-  // Phase 2: study disappears, choices appear. Unlimited time to respond.
+  // 2) Study image alone
+  timeline.push({
+    type: jsPsychHtmlKeyboardResponse,
+    prompt: trialProgress,
+    stimulus: `<div class="sf-cell"><img src="stimuli/${trial.study}" draggable="false" height="200px" ondragstart="return false;"></div>`,
+    choices: "NO_KEYS",
+    trial_duration: STUDY_MS,
+    post_trial_gap: 0,
+    data: { SbjID: sbjID, TrialNum: trial.trial, TrialPart: 'study' }
+  });
+
+  // 3) Pink noise mask, slightly bigger than the study image
+  timeline.push({
+    type: jsPsychHtmlKeyboardResponse,
+    prompt: trialProgress,
+    stimulus: `<div class="mask-cell"><img src="assets/pink_noise_mask.png" draggable="false" height="240px" ondragstart="return false;"></div>`,
+    choices: "NO_KEYS",
+    trial_duration: MASK_MS,
+    post_trial_gap: 0,
+    data: { SbjID: sbjID, TrialNum: trial.trial, TrialPart: 'mask' }
+  });
+
+  // 4) Fixation ISI (mask gone, choices not up yet)
+  timeline.push({
+    type: jsPsychHtmlKeyboardResponse,
+    prompt: trialProgress,
+    stimulus: `<div class="fix-cross">+</div>`,
+    choices: "NO_KEYS",
+    trial_duration: ISI_MS,
+    post_trial_gap: 0,
+    data: { SbjID: sbjID, TrialNum: trial.trial, TrialPart: 'isi' }
+  });
+
+  // 5) Choices appear (study/mask both gone). Unlimited response time.
   timeline.push({
     type: jsPsychHtmlButtonResponse,
-    prompt: `<p style = "position: relative; text-align: center; left: 235px; top: -150px; font-size: 25px;"><b>Trial ${trial.trial}/${trials.length} &mdash; study visible for ${trial.presentationTime}ms</b>`,
-    stimulus: `
-    <div class="sf-prompt">which texture matches the center?</div>`,
+    prompt: trialProgress,
+    stimulus: `<div class="sf-prompt">which texture matches the one you saw?</div>`,
     choices: choiceHTML,
     button_html: '<button class="jspsych-btn sf-btn">%choice%</button>',
     css_classes: ['sf-panel-trial'],
     response_ends_trial: true,
     post_trial_gap: 500,
     on_load: function () {
-      // drop each choice into its randomized slot (study cell is gone, so this grid
-      // is choices-only, same positions as computed above)
       const wraps = document.querySelectorAll(
         '#jspsych-html-button-response-btngroup .jspsych-html-button-response-button');
       slots.forEach((pos, i) => { if (wraps[i]) wraps[i].classList.add('pos-' + pos); });
@@ -175,6 +216,7 @@ for (let trial of trials) {
     data: {
       SbjID: sbjID,
       TrialNum: trial.trial,
+      TrialPart: 'response',
       CorrRes: trial.corrRes,
       TrialType: trial.trialType,
       Category: trial.category,
@@ -183,7 +225,6 @@ for (let trial of trials) {
       ChoiceDb: trial.choice_db,
       ChoiceCategory: trial.choice_category,
       AnswerPart: trial.answer_part,
-      PresentationTimeMs: trial.presentationTime,
       SourcePilot: trial.sourcePilot,
       SourceOrigTrial: trial.sourceOrigTrial,
       PilotAccuracy: trial.pilotAccuracy,
@@ -220,13 +261,11 @@ timeline.push({
   type: jsPsychHtmlButtonResponse,
   choices: ['Finish demo'],
   stimulus: function () {
-    const test = jsPsych.data.get().filter({ trial_type: 'html-button-response' });
+    const test = jsPsych.data.get().filter({ TrialPart: 'response' });
     const nTotal = test.count();
     const nCorrect = test.filter({ Correct: true }).count();
     const pct = nTotal ? Math.round(100 * nCorrect / nTotal) : 0;
-    return `<p>Demo complete. <b>${nCorrect} / ${nTotal}</b> correct (<b>${pct}%</b>).</p>
-    <p style="font-size:14px;color:#666;">Open the browser console and run <code>jsPsych.data.get().csv()</code>
-    (or check Data Explorer) to see the per-trial PresentationTimeMs / Correct / responseSlot columns.</p>`;
+    return `<p>Demo complete. <b>${nCorrect} / ${nTotal}</b> correct (<b>${pct}%</b>).</p>`;
   }
 });
 
