@@ -120,6 +120,22 @@ timeline.push({
   }
 });
 
+timeline.push({
+  type: jsPsychHtmlButtonResponse,
+  stimulus: `<p>**The task instructions with images will appear here**</p>
+  <p>In this task, your job is to study a visual texture and then match it a different visual texture that looks most similar to the one you studied.</p>
+  <p>On each trial, you will first see a fixation cross, then the texture you need to study will briefly appear, followed by a mask.</p
+<p>After that, you will have to pick which of the 3 visual textures looks the most similar to the one you studied.</p>
+<br>
+<p>This task will be difficult, so just try your best!</p>`,
+  choices: ['Continue'],
+  fullscreen_mode: true,
+  on_start: function() {
+    should_be_in_fullscreen = true;
+  }
+});
+
+
 let images = ['assets/pink_noise_mask.png'];
 for (let trial of trials) {
   for (let choice of trial.choices) {
